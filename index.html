@@ -52,10 +52,15 @@
     border-bottom:1px solid var(--line);
   }
   header .brand{
-    font-size:17px;
-    font-weight:600;
-    letter-spacing:-0.1px;
+    font-size:21px;
+    font-weight:800;
+    letter-spacing:-0.5px;
     color:var(--ink);
+    cursor:pointer;
+    display:inline-block;
+  }
+  header .brand-accent{
+    color:var(--accent);
   }
   header .sub{
     font-size:12px;
@@ -319,9 +324,9 @@
 </style>
 </head>
 <body>
-<header id="headerBrand" style="cursor:pointer;">
-  <div class="brand">📇 명함 스캔</div>
-  <div class="sub">Card Scanner · theo · eXp</div>
+<header>
+  <div class="brand" id="headerBrand">the<span class="brand-accent">o</span></div>
+  <div class="sub">명함스캔 · eXp</div>
 </header>
 <div class="segment">
   <button class="segment-btn active" id="tabScanBtn">촬영</button>
