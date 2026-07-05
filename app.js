@@ -97,12 +97,23 @@ async function startCamera() {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 4096 },
-        height: { ideal: 2304 }
+        width: { ideal: 3840 },
+        height: { ideal: 2160 }
       },
       audio: false
     });
     videoTrack = stream.getVideoTracks()[0];
+
+    // 연속 자동초점 강제 적용 (지원하는 기기에서만 동작, 미지원이어도 무시됨)
+    try {
+      const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+      if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+        await videoTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      }
+    } catch (e) {
+      // 초점 제어 미지원 기기는 무시하고 진행
+    }
+
     video.srcObject = stream;
     cameraBox.classList.remove('idle');
     placeholder.style.display = 'none';
@@ -169,21 +180,8 @@ cameraBox.addEventListener('click', () => {
   if (cameraBox.classList.contains('idle')) startCamera();
 });
 
-// 캡처 버튼: 가능하면 ImageCapture로 카메라 원본 고해상도 사진을 직접 획득 (영상 프레임보다 훨씬 선명함)
-captureBtn.addEventListener('click', async () => {
-  if (window.ImageCapture && videoTrack) {
-    try {
-      const imageCapture = new ImageCapture(videoTrack);
-      const blob = await imageCapture.takePhoto();
-      const bitmap = await createImageBitmap(blob);
-      cropToCardAspect(bitmap, bitmap.width, bitmap.height);
-      showCaptured();
-      return;
-    } catch (err) {
-      // ImageCapture 실패 시 아래 영상 프레임 캡처로 대체
-    }
-  }
-  // 대체 방식: 현재 영상 프레임에서 캡처 (ImageCapture 미지원 브라우저용)
+// 캡처 버튼: 화면에 보이는 미리보기 프레임을 그대로 캡처 (가이드 박스와 100% 동일한 구도 보장)
+captureBtn.addEventListener('click', () => {
   cropToCardAspect(video, video.videoWidth, video.videoHeight);
   showCaptured();
 });
