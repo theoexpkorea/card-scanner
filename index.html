@@ -5,39 +5,79 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>명함 스캔</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#2563EB">
+<meta name="theme-color" content="#14161C">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
   :root{
-    --blue:#2563EB;
-    --blue-dark:#1D4ED8;
-    --ink:#111827;
+    --ink:#111318;
+    --header:#14161C;
+    --header2:#1C1F27;
+    --accent:#2F6FED;
+    --accent-dark:#2557C4;
     --gray:#6B7280;
-    --line:#E5E7EB;
-    --bg:#F9FAFB;
+    --gray-light:#9CA3AF;
+    --line:#E7E8EC;
+    --bg:#F4F5F7;
+    --card-bg:#FFFFFF;
     --ok:#16A34A;
     --err:#DC2626;
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   body{
     margin:0;
     font-family:-apple-system,BlinkMacSystemFont,'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
     background:var(--bg);
     color:var(--ink);
-    padding-bottom:40px;
+    padding-bottom:48px;
   }
+
   header{
-    background:var(--blue);
+    background:var(--header);
     color:#fff;
-    padding:18px 20px calc(18px + env(safe-area-inset-top,0px));
-    padding-top:calc(18px + env(safe-area-inset-top,0px));
-    font-size:18px;
-    font-weight:700;
-    letter-spacing:-0.3px;
+    padding:16px 20px 14px;
+    padding-top:calc(16px + env(safe-area-inset-top,0px));
   }
-  .container{max-width:480px;margin:0 auto;padding:16px;}
+  header .brand{
+    font-size:19px;
+    font-weight:800;
+    letter-spacing:-0.4px;
+  }
+  header .sub{
+    font-size:12px;
+    color:#9AA1AE;
+    margin-top:2px;
+    letter-spacing:-0.1px;
+  }
+
+  .segment{
+    display:flex;
+    background:var(--header2);
+    margin:0 20px 0;
+    padding:4px;
+    border-radius:12px;
+    position:relative;
+    top:-10px;
+  }
+  .segment-btn{
+    flex:1;
+    padding:9px 0;
+    text-align:center;
+    background:transparent;
+    border:none;
+    color:#9AA1AE;
+    font-size:13.5px;
+    font-weight:600;
+    border-radius:9px;
+  }
+  .segment-btn.active{
+    background:#fff;
+    color:var(--ink);
+  }
+
+  .container{max-width:480px;margin:-4px auto 0;padding:14px 16px 16px;}
 
   /* 명함 표준 비율 85.6:54 ≈ 1.586:1 로 고정된 촬영 프레임 */
   .camera-box{
@@ -51,10 +91,11 @@
     gap:10px;
     overflow:hidden;
     position:relative;
+    box-shadow:0 1px 2px rgba(0,0,0,0.06);
   }
   .camera-box.idle{
     background:#fff;
-    border:2px dashed var(--line);
+    border:1.5px dashed #D1D5DB;
     cursor:pointer;
   }
   #video, #resultImg{
@@ -66,8 +107,9 @@
     text-align:center;
     padding:20px;
   }
-  .camera-box .placeholder svg{width:40px;height:40px;stroke:var(--gray);margin-bottom:6px;}
-  .camera-box .placeholder .hint{font-size:13px;margin-top:4px;}
+  .camera-box .placeholder svg{width:36px;height:36px;stroke:var(--gray-light);margin-bottom:8px;}
+  .camera-box .placeholder .title{font-size:14.5px;font-weight:600;color:var(--ink);}
+  .camera-box .placeholder .hint{font-size:12.5px;margin-top:4px;color:var(--gray);}
   .guide-frame{
     position:absolute;
     inset:6%;
@@ -81,8 +123,9 @@
     top:8px;left:50%;transform:translateX(-50%);
     background:rgba(0,0,0,0.55);color:#fff;
     padding:4px 12px;border-radius:20px;
-    font-size:12px;
+    font-size:11.5px;
     display:none;
+    white-space:nowrap;
   }
   .capture-btn{
     position:absolute;bottom:14px;left:50%;transform:translateX(-50%);
@@ -91,53 +134,108 @@
     display:none;
   }
   .retake{
-    position:absolute;bottom:14px;right:14px;
+    position:absolute;bottom:16px;right:14px;
     background:rgba(0,0,0,0.6);color:#fff;
-    padding:8px 14px;border-radius:20px;font-size:13px;
+    padding:8px 14px;border-radius:20px;font-size:12.5px;
     display:none;
   }
-
-  .field{margin-top:18px;}
-  .field label{
-    display:block;font-size:13px;font-weight:600;color:var(--gray);
-    margin-bottom:6px;
+  .native-fallback{
+    position:absolute;bottom:16px;left:14px;
+    background:rgba(0,0,0,0.5);color:#fff;
+    padding:6px 12px;border-radius:20px;font-size:11.5px;
+    display:none;
   }
-  .field .required{color:var(--err);}
-  .field input, .field select{
+  .focus-ring{
+    position:absolute;
+    width:64px;height:64px;
+    margin-left:-32px;margin-top:-32px;
+    border:2px solid #FFD400;
+    border-radius:8px;
+    pointer-events:none;
+    animation:focusPulse 0.7s ease-out;
+  }
+  @keyframes focusPulse{
+    0%{transform:scale(1.3);opacity:1;}
+    100%{transform:scale(1);opacity:0;}
+  }
+
+  .field{margin-top:16px;}
+  .field label{
+    display:block;font-size:12.5px;font-weight:700;color:var(--gray);
+    margin-bottom:6px;
+    letter-spacing:-0.1px;
+  }
+  .field .required{color:var(--accent);font-weight:700;}
+  .field input{
     width:100%;
     padding:13px 14px;
     border:1.5px solid var(--line);
-    border-radius:10px;
-    font-size:16px;
+    border-radius:11px;
+    font-size:15.5px;
     background:#fff;
     color:var(--ink);
     -webkit-appearance:none;
     appearance:none;
   }
-  .field input:focus, .field select:focus{
-    outline:none;border-color:var(--blue);
+  .field input:focus{
+    outline:none;border-color:var(--accent);
   }
-  select{
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236B7280' stroke-width='1.5' fill='none' fill-rule='evenodd'/%3E%3C/svg%3E");
-    background-repeat:no-repeat;
-    background-position:right 14px center;
-    padding-right:36px;
+
+  /* 커스텀 드롭다운 (네이티브 select 대체) */
+  .dd{position:relative;}
+  .dd-btn{
+    width:100%;
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:13px 14px;
+    border:1.5px solid var(--line);
+    border-radius:11px;
+    background:#fff;
+    font-size:15.5px;
+    color:var(--ink);
+    text-align:left;
   }
+  .dd-btn .dd-label.placeholder{color:var(--gray-light);}
+  .dd-btn svg{flex-shrink:0;width:16px;height:16px;stroke:var(--gray);transition:transform .15s;}
+  .dd-btn.open svg{transform:rotate(180deg);}
+  .dd-panel{
+    position:absolute;
+    top:calc(100% + 6px);
+    left:0;right:0;
+    background:#fff;
+    border-radius:13px;
+    box-shadow:0 10px 30px rgba(15,17,24,0.16);
+    border:1px solid var(--line);
+    max-height:280px;
+    overflow-y:auto;
+    z-index:80;
+    display:none;
+    padding:6px;
+  }
+  .dd-panel.open{display:block;}
+  .dd-item{
+    padding:12px 12px;
+    font-size:14.5px;
+    border-radius:9px;
+    display:flex;justify-content:space-between;align-items:center;
+    color:var(--ink);
+  }
+  .dd-item:active{background:var(--bg);}
+  .dd-item.selected{color:var(--accent);font-weight:700;background:#EEF3FF;}
 
   .submit-btn{
     width:100%;
-    margin-top:26px;
+    margin-top:24px;
     padding:16px;
-    background:var(--blue);
+    background:var(--ink);
     color:#fff;
     border:none;
-    border-radius:12px;
-    font-size:16px;
+    border-radius:13px;
+    font-size:15.5px;
     font-weight:700;
-    cursor:pointer;
+    letter-spacing:-0.2px;
   }
-  .submit-btn:disabled{background:#9CA3AF;}
-  .submit-btn:active{background:var(--blue-dark);}
+  .submit-btn:disabled{background:#B0B4BD;}
+  .submit-btn:active{background:var(--header2);}
 
   .toast{
     position:fixed;
@@ -149,108 +247,85 @@
     max-width:90%;
     text-align:center;
     z-index:100;
+    box-shadow:0 6px 20px rgba(0,0,0,0.2);
   }
   .toast.show{display:block;}
   .toast.ok{background:var(--ok);}
   .toast.err{background:var(--err);}
-
-  .history-link{
-    display:block;
-    text-align:center;
-    margin-top:18px;
-    color:var(--gray);
-    font-size:13px;
-    text-decoration:none;
-  }
-
-  #cameraInput{display:none;}
-
-  .tabbar{
-    display:flex;
-    background:var(--blue-dark);
-    position:sticky;top:0;z-index:50;
-  }
-  .tab-btn{
-    flex:1;
-    padding:12px;
-    background:transparent;
-    border:none;
-    color:rgba(255,255,255,0.65);
-    font-size:14px;
-    font-weight:600;
-    border-bottom:3px solid transparent;
-  }
-  .tab-btn.active{
-    color:#fff;
-    border-bottom-color:#fff;
-  }
 
   .filter-row{margin-bottom:14px;}
 
   .card-item{
     display:flex;
     gap:12px;
-    background:#fff;
+    background:var(--card-bg);
     border:1px solid var(--line);
-    border-radius:12px;
-    padding:10px;
+    border-radius:14px;
+    padding:11px;
     margin-bottom:10px;
     text-decoration:none;
     color:var(--ink);
+    box-shadow:0 1px 3px rgba(15,17,24,0.05);
   }
   .card-item .thumb{
-    width:76px;height:48px;
-    border-radius:6px;
+    width:80px;height:50px;
+    border-radius:7px;
     object-fit:cover;
-    background:#E5E7EB;
+    background:#EDEEF1;
     flex-shrink:0;
   }
   .card-item .info{flex:1;min-width:0;}
-  .card-item .info .name{font-weight:700;font-size:15px;}
-  .card-item .info .company{font-size:13px;color:var(--gray);margin-top:2px;}
+  .card-item .info .name{font-weight:700;font-size:15px;letter-spacing:-0.2px;}
+  .card-item .info .company{font-size:12.5px;color:var(--gray);margin-top:2px;}
   .card-item .info .meta{
-    font-size:11px;color:var(--gray);margin-top:4px;
-    display:flex;gap:6px;flex-wrap:wrap;
+    font-size:11px;color:var(--gray);margin-top:6px;
+    display:flex;gap:5px;flex-wrap:wrap;
   }
   .card-item .info .meta span{
     background:var(--bg);
-    padding:2px 7px;border-radius:8px;
+    padding:3px 8px;border-radius:7px;
+    font-weight:600;
   }
 
   .empty-state{
     text-align:center;
     color:var(--gray);
     padding:60px 20px;
-    font-size:14px;
+    font-size:13.5px;
   }
 </style>
 </head>
 <body>
-<header>📇 명함 스캔</header>
-<div class="tabbar">
-  <button class="tab-btn active" id="tabScanBtn">촬영</button>
-  <button class="tab-btn" id="tabListBtn">목록</button>
+<header>
+  <div class="brand">📇 명함 스캔</div>
+  <div class="sub">Card Scanner · eXp Korea</div>
+</header>
+<div class="segment">
+  <button class="segment-btn active" id="tabScanBtn">촬영</button>
+  <button class="segment-btn" id="tabListBtn">목록</button>
 </div>
+
 <div class="container" id="scanTab">
 
   <div class="camera-box idle" id="cameraBox">
     <div class="placeholder" id="placeholder">
       <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
-      <div>탭해서 명함 촬영</div>
+      <div class="title">탭해서 명함 촬영</div>
       <div class="hint">가이드 박스에 맞춰 찍으면 항상 같은 구도로 저장돼요</div>
     </div>
     <video id="video" autoplay playsinline muted></video>
     <img id="resultImg" alt="촬영된 명함">
-    <div class="guide-label" id="guideLabel">박스 안에 명함을 맞춰주세요</div>
+    <div class="guide-label" id="guideLabel">박스에 맞춰주세요 · 화면 탭하면 초점 재조정</div>
     <div class="guide-frame" id="guideFrame"></div>
     <button class="capture-btn" id="captureBtn"></button>
+    <div class="native-fallback" id="nativeFallbackBtn">기본 카메라로 촬영</div>
     <div class="retake" id="retakeBtn">다시 찍기</div>
   </div>
   <canvas id="captureCanvas" style="display:none;"></canvas>
   <input type="file" id="fallbackInput" accept="image/*" capture="environment" style="display:none;">
 
   <div class="field">
-    <label>이름 <span class="required">*필수</span></label>
+    <label>이름 <span class="required">필수</span></label>
     <input type="text" id="name" placeholder="예: 김철수">
   </div>
 
@@ -265,24 +340,36 @@
   </div>
 
   <div class="field">
-    <label>그룹 <span class="required">*필수</span></label>
-    <select id="group">
-      <option value="">선택하세요</option>
-    </select>
+    <label>그룹 <span class="required">필수</span></label>
+    <div class="dd" id="ddGroup">
+      <button type="button" class="dd-btn" id="ddGroupBtn">
+        <span class="dd-label placeholder" id="ddGroupLabel">선택하세요</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd-panel" id="ddGroupPanel"></div>
+    </div>
   </div>
 
   <div class="field" id="subgroupField" style="display:none;">
     <label>소분류</label>
-    <select id="subgroup">
-      <option value="">선택하세요</option>
-    </select>
+    <div class="dd" id="ddSubgroup">
+      <button type="button" class="dd-btn" id="ddSubgroupBtn">
+        <span class="dd-label placeholder" id="ddSubgroupLabel">선택하세요</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd-panel" id="ddSubgroupPanel"></div>
+    </div>
   </div>
 
   <div class="field" id="subsubgroupField" style="display:none;">
     <label>소소분류</label>
-    <select id="subsubgroup">
-      <option value="">선택하세요</option>
-    </select>
+    <div class="dd" id="ddSubsubgroup">
+      <button type="button" class="dd-btn" id="ddSubsubgroupBtn">
+        <span class="dd-label placeholder" id="ddSubsubgroupLabel">선택하세요</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd-panel" id="ddSubsubgroupPanel"></div>
+    </div>
   </div>
 
   <button class="submit-btn" id="submitBtn">저장</button>
@@ -292,9 +379,13 @@
 <div class="container" id="listTab" style="display:none;">
   <div class="field filter-row">
     <label>그룹 필터</label>
-    <select id="filterGroup">
-      <option value="">전체 보기</option>
-    </select>
+    <div class="dd" id="ddFilter">
+      <button type="button" class="dd-btn" id="ddFilterBtn">
+        <span class="dd-label" id="ddFilterLabel">전체 보기</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd-panel" id="ddFilterPanel"></div>
+    </div>
   </div>
   <div id="cardListContainer">
     <div class="empty-state">불러오는 중...</div>

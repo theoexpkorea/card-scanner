@@ -1,5 +1,4 @@
 // ⚠️ Apps Script 배포 후 웹앱 URL을 여기에 붙여넣으세요
-// 예: https://script.google.com/macros/s/AKfycb.../exec
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFPY9gJxEJm_Ny-qqEViYWJ6l1cGptVLto7BR_jyLWk3A2KoV-shtR6ldKod1SdllB/exec';
 
 // 그룹 구조 (Code.gs의 GROUP_STRUCTURE와 반드시 동일하게 유지)
@@ -20,56 +19,102 @@ const GROUP_STRUCTURE = {
   '임시저장': null
 };
 
-let selectedImageBase64 = null;
-let selectedImageMime = 'image/jpeg';
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str == null ? '' : str;
+  return div.innerHTML;
+}
 
-// ---------- 그룹 드롭다운 채우기 ----------
-const groupSelect = document.getElementById('group');
-const subgroupSelect = document.getElementById('subgroup');
-const subsubgroupSelect = document.getElementById('subsubgroup');
+// ---------- 커스텀 드롭다운 컴포넌트 ----------
+function makeDropdown(id, placeholderText) {
+  const btn = document.getElementById(id + 'Btn');
+  const label = document.getElementById(id + 'Label');
+  const panel = document.getElementById(id + 'Panel');
+  let value = '';
+  let options = [];
+  let onChangeCb = null;
+
+  function render() {
+    panel.innerHTML = options.map(opt => {
+      const isSel = opt === value;
+      return '<div class="dd-item' + (isSel ? ' selected' : '') + '" data-val="' + escapeHtml(opt) + '">' +
+        escapeHtml(opt) + (isSel ? ' <span>✓</span>' : '') +
+      '</div>';
+    }).join('');
+  }
+
+  function closeAll() {
+    document.querySelectorAll('.dd-panel.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.dd-btn.open').forEach(b => b.classList.remove('open'));
+  }
+
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const willOpen = !panel.classList.contains('open');
+    closeAll();
+    if (willOpen) {
+      panel.classList.add('open');
+      btn.classList.add('open');
+    }
+  });
+
+  panel.addEventListener('click', (e) => {
+    const item = e.target.closest('.dd-item');
+    if (!item) return;
+    value = item.dataset.val;
+    label.textContent = value || placeholderText;
+    label.classList.toggle('placeholder', !value);
+    closeAll();
+    render();
+    if (onChangeCb) onChangeCb(value);
+  });
+
+  document.addEventListener('click', closeAll);
+
+  return {
+    setOptions(arr) { options = arr; render(); },
+    setValue(v) {
+      value = v || '';
+      label.textContent = value || placeholderText;
+      label.classList.toggle('placeholder', !value);
+      render();
+    },
+    getValue() { return value; },
+    onChange(cb) { onChangeCb = cb; }
+  };
+}
+
+const ddGroup = makeDropdown('ddGroup', '선택하세요');
+const ddSubgroup = makeDropdown('ddSubgroup', '선택하세요');
+const ddSubsubgroup = makeDropdown('ddSubsubgroup', '선택하세요');
+const ddFilter = makeDropdown('ddFilter', '전체 보기');
+
 const subgroupField = document.getElementById('subgroupField');
 const subsubgroupField = document.getElementById('subsubgroupField');
 
-Object.keys(GROUP_STRUCTURE).forEach(group => {
-  const opt = document.createElement('option');
-  opt.value = group;
-  opt.textContent = group;
-  groupSelect.appendChild(opt);
-});
+ddGroup.setOptions(Object.keys(GROUP_STRUCTURE));
 
-groupSelect.addEventListener('change', () => {
-  const group = groupSelect.value;
-  subgroupSelect.innerHTML = '<option value="">선택하세요</option>';
-  subsubgroupSelect.innerHTML = '<option value="">선택하세요</option>';
+ddGroup.onChange((group) => {
   subgroupField.style.display = 'none';
   subsubgroupField.style.display = 'none';
+  ddSubgroup.setValue('');
+  ddSubsubgroup.setValue('');
 
   const sub = GROUP_STRUCTURE[group];
   if (sub && typeof sub === 'object') {
-    Object.keys(sub).forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = s;
-      subgroupSelect.appendChild(opt);
-    });
+    ddSubgroup.setOptions(Object.keys(sub));
     subgroupField.style.display = 'block';
   }
 });
 
-subgroupSelect.addEventListener('change', () => {
-  const group = groupSelect.value;
-  const subgroup = subgroupSelect.value;
-  subsubgroupSelect.innerHTML = '<option value="">선택하세요</option>';
+ddSubgroup.onChange((subgroup) => {
   subsubgroupField.style.display = 'none';
+  ddSubsubgroup.setValue('');
 
+  const group = ddGroup.getValue();
   const subsub = GROUP_STRUCTURE[group] && GROUP_STRUCTURE[group][subgroup];
   if (Array.isArray(subsub)) {
-    subsub.forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s;
-      opt.textContent = s;
-      subsubgroupSelect.appendChild(opt);
-    });
+    ddSubsubgroup.setOptions(subsub);
     subsubgroupField.style.display = 'block';
   }
 });
@@ -86,6 +131,7 @@ const guideFrame = document.getElementById('guideFrame');
 const guideLabel = document.getElementById('guideLabel');
 const captureBtn = document.getElementById('captureBtn');
 const retakeBtn = document.getElementById('retakeBtn');
+const nativeFallbackBtn = document.getElementById('nativeFallbackBtn');
 const captureCanvas = document.getElementById('captureCanvas');
 const fallbackInput = document.getElementById('fallbackInput');
 
@@ -97,18 +143,32 @@ async function startCamera() {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: 'environment' },
-        width: { ideal: 3840 },
-        height: { ideal: 2160 }
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       },
       audio: false
     });
     videoTrack = stream.getVideoTracks()[0];
 
-    // 연속 자동초점 강제 적용 (지원하는 기기에서만 동작, 미지원이어도 무시됨)
+    // 연속 자동초점 시도 + 초기 한 번 강제 트리거 (일부 기기는 continuous만으론 안 움직임)
     try {
       const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
-      if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
-        await videoTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+      if (capabilities.focusMode) {
+        if (capabilities.focusMode.includes('continuous')) {
+          await videoTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+        }
+        if (capabilities.focusMode.includes('single-shot')) {
+          setTimeout(async () => {
+            try {
+              await videoTrack.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
+              setTimeout(async () => {
+                if (capabilities.focusMode.includes('continuous')) {
+                  try { await videoTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
+                }
+              }, 800);
+            } catch (e) {}
+          }, 400);
+        }
       }
     } catch (e) {
       // 초점 제어 미지원 기기는 무시하고 진행
@@ -121,9 +181,46 @@ async function startCamera() {
     guideFrame.style.display = 'block';
     guideLabel.style.display = 'block';
     captureBtn.style.display = 'block';
+    nativeFallbackBtn.style.display = 'block';
   } catch (err) {
     fallbackInput.click();
   }
+}
+
+// 화면 탭 → 그 지점으로 재초점 시도 (지원 기기에서만 동작)
+video.addEventListener('click', async (e) => {
+  if (!videoTrack) return;
+  try {
+    const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+    const rect = video.getBoundingClientRect();
+    showFocusRing(e.clientX - rect.left, e.clientY - rect.top);
+    if (!capabilities.focusMode) return;
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    const constraints = { advanced: [{ pointsOfInterest: [{ x, y }] }] };
+    if (capabilities.focusMode.includes('single-shot')) {
+      constraints.advanced.push({ focusMode: 'single-shot' });
+    }
+    await videoTrack.applyConstraints(constraints);
+    setTimeout(async () => {
+      try {
+        if (capabilities.focusMode.includes('continuous')) {
+          await videoTrack.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+        }
+      } catch (e2) {}
+    }, 1500);
+  } catch (e) {
+    // 미지원 기기는 무시
+  }
+});
+
+function showFocusRing(x, y) {
+  const ring = document.createElement('div');
+  ring.className = 'focus-ring';
+  ring.style.left = x + 'px';
+  ring.style.top = y + 'px';
+  cameraBox.appendChild(ring);
+  setTimeout(() => ring.remove(), 700);
 }
 
 function stopCamera() {
@@ -134,7 +231,7 @@ function stopCamera() {
   }
 }
 
-// 소스 이미지(고해상도)를 명함 비율로 크롭해서 출력 캔버스에 그림
+// 소스 이미지를 명함 비율로 크롭해서 출력 캔버스에 그림
 function cropToCardAspect(sourceImgOrVideo, srcW, srcH) {
   const aspect = srcW / srcH;
   let sx, sy, sWidth, sHeight;
@@ -150,7 +247,6 @@ function cropToCardAspect(sourceImgOrVideo, srcW, srcH) {
     sy = (srcH - sHeight) / 2;
   }
 
-  // 원본이 목표 해상도보다 작으면 원본 크기를 그대로 쓰고(확대 방지), 크면 OUTPUT_WIDTH로 축소
   const outW = Math.min(OUTPUT_WIDTH, Math.round(sWidth));
   const outH = Math.round(outW / CARD_ASPECT);
 
@@ -165,6 +261,9 @@ function cropToCardAspect(sourceImgOrVideo, srcW, srcH) {
   selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.92);
 }
 
+let selectedImageBase64 = null;
+let selectedImageMime = 'image/jpeg';
+
 function showCaptured() {
   resultImg.src = selectedImageBase64;
   resultImg.style.display = 'block';
@@ -172,6 +271,7 @@ function showCaptured() {
   guideFrame.style.display = 'none';
   guideLabel.style.display = 'none';
   captureBtn.style.display = 'none';
+  nativeFallbackBtn.style.display = 'none';
   retakeBtn.style.display = 'block';
   stopCamera();
 }
@@ -180,13 +280,23 @@ cameraBox.addEventListener('click', () => {
   if (cameraBox.classList.contains('idle')) startCamera();
 });
 
-// 캡처 버튼: 화면에 보이는 미리보기 프레임을 그대로 캡처 (가이드 박스와 100% 동일한 구도 보장)
 captureBtn.addEventListener('click', () => {
   cropToCardAspect(video, video.videoWidth, video.videoHeight);
   showCaptured();
 });
 
-// 다시 찍기
+// 초점이 계속 안 맞을 때 폰 기본 카메라 앱으로 전환
+nativeFallbackBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  stopCamera();
+  video.style.display = 'none';
+  guideFrame.style.display = 'none';
+  guideLabel.style.display = 'none';
+  captureBtn.style.display = 'none';
+  nativeFallbackBtn.style.display = 'none';
+  fallbackInput.click();
+});
+
 retakeBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   resultImg.style.display = 'none';
@@ -195,7 +305,6 @@ retakeBtn.addEventListener('click', (e) => {
   startCamera();
 });
 
-// 카메라 권한이 없거나 지원 안 되는 환경(구형 브라우저 등)의 대체 경로
 fallbackInput.addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
@@ -230,9 +339,9 @@ submitBtn.addEventListener('click', async () => {
   const name = document.getElementById('name').value.trim();
   const company = document.getElementById('company').value.trim();
   const title = document.getElementById('title').value.trim();
-  const group = groupSelect.value;
-  const subgroup = subgroupSelect.value;
-  const subsubgroup = subsubgroupSelect.value;
+  const group = ddGroup.getValue();
+  const subgroup = ddSubgroup.getValue();
+  const subsubgroup = ddSubsubgroup.getValue();
 
   if (!selectedImageBase64) {
     showToast('명함 사진을 먼저 촬영해주세요', 'err');
@@ -244,10 +353,6 @@ submitBtn.addEventListener('click', async () => {
   }
   if (!group) {
     showToast('그룹을 선택해주세요', 'err');
-    return;
-  }
-  if (APPS_SCRIPT_URL.indexOf('PASTE_YOUR') === 0) {
-    showToast('설정 오류: Apps Script URL이 아직 입력되지 않았습니다', 'err');
     return;
   }
 
@@ -284,7 +389,9 @@ function resetForm() {
   document.getElementById('name').value = '';
   document.getElementById('company').value = '';
   document.getElementById('title').value = '';
-  groupSelect.value = '';
+  ddGroup.setValue('');
+  ddSubgroup.setValue('');
+  ddSubsubgroup.setValue('');
   subgroupField.style.display = 'none';
   subsubgroupField.style.display = 'none';
   selectedImageBase64 = null;
@@ -295,6 +402,7 @@ function resetForm() {
   guideFrame.style.display = 'none';
   guideLabel.style.display = 'none';
   captureBtn.style.display = 'none';
+  nativeFallbackBtn.style.display = 'none';
   retakeBtn.style.display = 'none';
   cameraBox.classList.add('idle');
   placeholder.style.display = 'flex';
@@ -313,18 +421,12 @@ const tabScanBtn = document.getElementById('tabScanBtn');
 const tabListBtn = document.getElementById('tabListBtn');
 const scanTab = document.getElementById('scanTab');
 const listTab = document.getElementById('listTab');
-const filterGroup = document.getElementById('filterGroup');
 const cardListContainer = document.getElementById('cardListContainer');
 
 let allCards = [];
-let cardsLoaded = false;
 
-Object.keys(GROUP_STRUCTURE).forEach(group => {
-  const opt = document.createElement('option');
-  opt.value = group;
-  opt.textContent = group;
-  filterGroup.appendChild(opt);
-});
+ddFilter.setOptions(Object.keys(GROUP_STRUCTURE));
+ddFilter.onChange(() => renderCards());
 
 tabScanBtn.addEventListener('click', () => {
   tabScanBtn.classList.add('active');
@@ -341,8 +443,6 @@ tabListBtn.addEventListener('click', () => {
   loadCards();
 });
 
-filterGroup.addEventListener('change', () => renderCards());
-
 async function loadCards() {
   cardListContainer.innerHTML = '<div class="empty-state">불러오는 중...</div>';
   try {
@@ -350,10 +450,9 @@ async function loadCards() {
     const data = await res.json();
     if (data.success) {
       allCards = data.cards || [];
-      cardsLoaded = true;
       renderCards();
     } else {
-      cardListContainer.innerHTML = '<div class="empty-state">불러오기 실패: ' + (data.error || '') + '</div>';
+      cardListContainer.innerHTML = '<div class="empty-state">불러오기 실패: ' + escapeHtml(data.error || '') + '</div>';
     }
   } catch (err) {
     cardListContainer.innerHTML = '<div class="empty-state">네트워크 오류로 불러오지 못했습니다</div>';
@@ -361,7 +460,7 @@ async function loadCards() {
 }
 
 function renderCards() {
-  const filter = filterGroup.value;
+  const filter = ddFilter.getValue();
   const filtered = filter ? allCards.filter(c => c.group === filter) : allCards;
 
   if (filtered.length === 0) {
@@ -386,10 +485,4 @@ function renderCards() {
       '</a>'
     );
   }).join('');
-}
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
 }
