@@ -16,7 +16,7 @@ const GROUP_STRUCTURE = {
   '04. eXp 코리아': null,
   '05. 지인': null,
   '06. 편의': null,
-  '임시저장': null
+  '07. 임시저장': null
 };
 
 function escapeHtml(str) {
