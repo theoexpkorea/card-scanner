@@ -468,6 +468,10 @@ tabScanBtn.addEventListener('click', () => {
   listTab.style.display = 'none';
 });
 
+document.getElementById('headerBrand').addEventListener('click', () => {
+  tabScanBtn.click();
+});
+
 tabListBtn.addEventListener('click', () => {
   tabListBtn.classList.add('active');
   tabScanBtn.classList.remove('active');

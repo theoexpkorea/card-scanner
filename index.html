@@ -34,6 +34,14 @@
     background:var(--bg);
     color:var(--ink);
     padding-bottom:48px;
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-touch-callout:none;
+  }
+  input, textarea{
+    -webkit-user-select:text;
+    user-select:text;
+    -webkit-touch-callout:default;
   }
 
   header{
@@ -311,7 +319,7 @@
 </style>
 </head>
 <body>
-<header>
+<header id="headerBrand" style="cursor:pointer;">
   <div class="brand">📇 명함 스캔</div>
   <div class="sub">Card Scanner · theo · eXp</div>
 </header>
