@@ -427,12 +427,14 @@ const filterSubsubField = document.getElementById('filterSubsubField');
 
 const ddFilterSub = makeDropdown('ddFilterSub', '전체 보기');
 const ddFilterSubsub = makeDropdown('ddFilterSubsub', '전체 보기');
+const ALL_OPTION = '전체 보기';
 
 let allCards = [];
 
-ddFilter.setOptions(Object.keys(GROUP_STRUCTURE));
+ddFilter.setOptions([ALL_OPTION, ...Object.keys(GROUP_STRUCTURE)]);
 
-ddFilter.onChange((group) => {
+ddFilter.onChange((value) => {
+  const group = value === ALL_OPTION ? '' : value;
   filterSubField.style.display = 'none';
   filterSubsubField.style.display = 'none';
   ddFilterSub.setValue('');
@@ -440,20 +442,22 @@ ddFilter.onChange((group) => {
 
   const sub = GROUP_STRUCTURE[group];
   if (sub && typeof sub === 'object') {
-    ddFilterSub.setOptions(Object.keys(sub));
+    ddFilterSub.setOptions([ALL_OPTION, ...Object.keys(sub)]);
     filterSubField.style.display = 'block';
   }
   renderCards();
 });
 
-ddFilterSub.onChange((subgroup) => {
+ddFilterSub.onChange((value) => {
+  const subgroup = value === ALL_OPTION ? '' : value;
   filterSubsubField.style.display = 'none';
   ddFilterSubsub.setValue('');
 
   const group = ddFilter.getValue();
-  const subsub = GROUP_STRUCTURE[group] && GROUP_STRUCTURE[group][subgroup];
+  const realGroup = group === ALL_OPTION ? '' : group;
+  const subsub = GROUP_STRUCTURE[realGroup] && GROUP_STRUCTURE[realGroup][subgroup];
   if (Array.isArray(subsub)) {
-    ddFilterSubsub.setOptions(subsub);
+    ddFilterSubsub.setOptions([ALL_OPTION, ...subsub]);
     filterSubsubField.style.display = 'block';
   }
   renderCards();
@@ -497,9 +501,12 @@ async function loadCards() {
 }
 
 function renderCards() {
-  const group = ddFilter.getValue();
-  const subgroup = ddFilterSub.getValue();
-  const subsubgroup = ddFilterSubsub.getValue();
+  const rawGroup = ddFilter.getValue();
+  const rawSubgroup = ddFilterSub.getValue();
+  const rawSubsubgroup = ddFilterSubsub.getValue();
+  const group = rawGroup === ALL_OPTION ? '' : rawGroup;
+  const subgroup = rawSubgroup === ALL_OPTION ? '' : rawSubgroup;
+  const subsubgroup = rawSubsubgroup === ALL_OPTION ? '' : rawSubsubgroup;
 
   let filtered = allCards;
   if (group) filtered = filtered.filter(c => c.group === group);
