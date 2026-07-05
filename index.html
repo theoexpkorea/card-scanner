@@ -164,11 +164,74 @@
   }
 
   #cameraInput{display:none;}
+
+  .tabbar{
+    display:flex;
+    background:var(--blue-dark);
+    position:sticky;top:0;z-index:50;
+  }
+  .tab-btn{
+    flex:1;
+    padding:12px;
+    background:transparent;
+    border:none;
+    color:rgba(255,255,255,0.65);
+    font-size:14px;
+    font-weight:600;
+    border-bottom:3px solid transparent;
+  }
+  .tab-btn.active{
+    color:#fff;
+    border-bottom-color:#fff;
+  }
+
+  .filter-row{margin-bottom:14px;}
+
+  .card-item{
+    display:flex;
+    gap:12px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:10px;
+    margin-bottom:10px;
+    text-decoration:none;
+    color:var(--ink);
+  }
+  .card-item .thumb{
+    width:76px;height:48px;
+    border-radius:6px;
+    object-fit:cover;
+    background:#E5E7EB;
+    flex-shrink:0;
+  }
+  .card-item .info{flex:1;min-width:0;}
+  .card-item .info .name{font-weight:700;font-size:15px;}
+  .card-item .info .company{font-size:13px;color:var(--gray);margin-top:2px;}
+  .card-item .info .meta{
+    font-size:11px;color:var(--gray);margin-top:4px;
+    display:flex;gap:6px;flex-wrap:wrap;
+  }
+  .card-item .info .meta span{
+    background:var(--bg);
+    padding:2px 7px;border-radius:8px;
+  }
+
+  .empty-state{
+    text-align:center;
+    color:var(--gray);
+    padding:60px 20px;
+    font-size:14px;
+  }
 </style>
 </head>
 <body>
 <header>📇 명함 스캔</header>
-<div class="container">
+<div class="tabbar">
+  <button class="tab-btn active" id="tabScanBtn">촬영</button>
+  <button class="tab-btn" id="tabListBtn">목록</button>
+</div>
+<div class="container" id="scanTab">
 
   <div class="camera-box idle" id="cameraBox">
     <div class="placeholder" id="placeholder">
@@ -224,6 +287,18 @@
 
   <button class="submit-btn" id="submitBtn">저장</button>
 
+</div>
+
+<div class="container" id="listTab" style="display:none;">
+  <div class="field filter-row">
+    <label>그룹 필터</label>
+    <select id="filterGroup">
+      <option value="">전체 보기</option>
+    </select>
+  </div>
+  <div id="cardListContainer">
+    <div class="empty-state">불러오는 중...</div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>

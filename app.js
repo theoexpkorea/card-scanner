@@ -76,7 +76,7 @@ subgroupSelect.addEventListener('change', () => {
 
 // ---------- 카메라 촬영 (라이브 프리뷰 + 명함 비율 가이드) ----------
 const CARD_ASPECT = 85.6 / 54; // 명함 표준 비율 (가로:세로)
-const OUTPUT_WIDTH = 1400; // 저장 이미지 고정 가로 크기 (모든 명함이 동일한 해상도로 저장됨)
+const OUTPUT_WIDTH = 2000; // 저장 이미지 고정 가로 크기 (고화질 유지)
 
 const cameraBox = document.getElementById('cameraBox');
 const placeholder = document.getElementById('placeholder');
@@ -90,13 +90,19 @@ const captureCanvas = document.getElementById('captureCanvas');
 const fallbackInput = document.getElementById('fallbackInput');
 
 let stream = null;
+let videoTrack = null;
 
 async function startCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 4096 },
+        height: { ideal: 2304 }
+      },
       audio: false
     });
+    videoTrack = stream.getVideoTracks()[0];
     video.srcObject = stream;
     cameraBox.classList.remove('idle');
     placeholder.style.display = 'none';
@@ -105,7 +111,6 @@ async function startCamera() {
     guideLabel.style.display = 'block';
     captureBtn.style.display = 'block';
   } catch (err) {
-    // 권한 거부/미지원 시 기본 카메라 앱으로 대체
     fallbackInput.click();
   }
 }
@@ -114,46 +119,42 @@ function stopCamera() {
   if (stream) {
     stream.getTracks().forEach(t => t.stop());
     stream = null;
+    videoTrack = null;
   }
 }
 
-// 촬영 시작: 처음 탭하면 카메라 권한 요청 + 프리뷰 시작
-cameraBox.addEventListener('click', () => {
-  if (cameraBox.classList.contains('idle')) startCamera();
-});
-
-// 캡처 버튼: 가이드 박스와 동일한 비율로 잘라서 고정 해상도로 저장
-captureBtn.addEventListener('click', () => {
-  const vw = video.videoWidth;
-  const vh = video.videoHeight;
-  const videoAspect = vw / vh;
-
+// 소스 이미지(고해상도)를 명함 비율로 크롭해서 출력 캔버스에 그림
+function cropToCardAspect(sourceImgOrVideo, srcW, srcH) {
+  const aspect = srcW / srcH;
   let sx, sy, sWidth, sHeight;
-  if (videoAspect > CARD_ASPECT) {
-    // 영상이 더 넓음 → 좌우를 잘라 명함 비율에 맞춤 (object-fit:cover와 동일 동작)
-    sHeight = vh;
-    sWidth = vh * CARD_ASPECT;
-    sx = (vw - sWidth) / 2;
+  if (aspect > CARD_ASPECT) {
+    sHeight = srcH;
+    sWidth = srcH * CARD_ASPECT;
+    sx = (srcW - sWidth) / 2;
     sy = 0;
   } else {
-    sWidth = vw;
-    sHeight = vw / CARD_ASPECT;
+    sWidth = srcW;
+    sHeight = srcW / CARD_ASPECT;
     sx = 0;
-    sy = (vh - sHeight) / 2;
+    sy = (srcH - sHeight) / 2;
   }
 
-  const outW = OUTPUT_WIDTH;
-  const outH = Math.round(OUTPUT_WIDTH / CARD_ASPECT);
+  // 원본이 목표 해상도보다 작으면 원본 크기를 그대로 쓰고(확대 방지), 크면 OUTPUT_WIDTH로 축소
+  const outW = Math.min(OUTPUT_WIDTH, Math.round(sWidth));
+  const outH = Math.round(outW / CARD_ASPECT);
+
   captureCanvas.width = outW;
   captureCanvas.height = outH;
   const ctx = captureCanvas.getContext('2d');
-  // 살짝 대비/선명도 보정 (지원 브라우저 한정, 미지원이면 무시됨)
-  try { ctx.filter = 'contrast(1.08) saturate(1.05)'; } catch (e) {}
-  ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
+  ctx.imageSmoothingQuality = 'high';
+  try { ctx.filter = 'contrast(1.06) saturate(1.04)'; } catch (e) {}
+  ctx.drawImage(sourceImgOrVideo, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
 
   selectedImageMime = 'image/jpeg';
-  selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.85);
+  selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.92);
+}
 
+function showCaptured() {
   resultImg.src = selectedImageBase64;
   resultImg.style.display = 'block';
   video.style.display = 'none';
@@ -161,8 +162,30 @@ captureBtn.addEventListener('click', () => {
   guideLabel.style.display = 'none';
   captureBtn.style.display = 'none';
   retakeBtn.style.display = 'block';
-
   stopCamera();
+}
+
+cameraBox.addEventListener('click', () => {
+  if (cameraBox.classList.contains('idle')) startCamera();
+});
+
+// 캡처 버튼: 가능하면 ImageCapture로 카메라 원본 고해상도 사진을 직접 획득 (영상 프레임보다 훨씬 선명함)
+captureBtn.addEventListener('click', async () => {
+  if (window.ImageCapture && videoTrack) {
+    try {
+      const imageCapture = new ImageCapture(videoTrack);
+      const blob = await imageCapture.takePhoto();
+      const bitmap = await createImageBitmap(blob);
+      cropToCardAspect(bitmap, bitmap.width, bitmap.height);
+      showCaptured();
+      return;
+    } catch (err) {
+      // ImageCapture 실패 시 아래 영상 프레임 캡처로 대체
+    }
+  }
+  // 대체 방식: 현재 영상 프레임에서 캡처 (ImageCapture 미지원 브라우저용)
+  cropToCardAspect(video, video.videoWidth, video.videoHeight);
+  showCaptured();
 });
 
 // 다시 찍기
@@ -182,25 +205,7 @@ fallbackInput.addEventListener('change', (e) => {
   reader.onload = (evt) => {
     const img = new Image();
     img.onload = () => {
-      const vw = img.width, vh = img.height;
-      const videoAspect = vw / vh;
-      let sx, sy, sWidth, sHeight;
-      if (videoAspect > CARD_ASPECT) {
-        sHeight = vh; sWidth = vh * CARD_ASPECT; sx = (vw - sWidth) / 2; sy = 0;
-      } else {
-        sWidth = vw; sHeight = vw / CARD_ASPECT; sx = 0; sy = (vh - sHeight) / 2;
-      }
-      const outW = OUTPUT_WIDTH;
-      const outH = Math.round(OUTPUT_WIDTH / CARD_ASPECT);
-      captureCanvas.width = outW;
-      captureCanvas.height = outH;
-      const ctx = captureCanvas.getContext('2d');
-      try { ctx.filter = 'contrast(1.08) saturate(1.05)'; } catch (err) {}
-      ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
-
-      selectedImageMime = 'image/jpeg';
-      selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.85);
-
+      cropToCardAspect(img, img.width, img.height);
       cameraBox.classList.remove('idle');
       placeholder.style.display = 'none';
       resultImg.src = selectedImageBase64;
@@ -303,4 +308,90 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   });
+}
+
+// ---------- 탭 전환 ----------
+const tabScanBtn = document.getElementById('tabScanBtn');
+const tabListBtn = document.getElementById('tabListBtn');
+const scanTab = document.getElementById('scanTab');
+const listTab = document.getElementById('listTab');
+const filterGroup = document.getElementById('filterGroup');
+const cardListContainer = document.getElementById('cardListContainer');
+
+let allCards = [];
+let cardsLoaded = false;
+
+Object.keys(GROUP_STRUCTURE).forEach(group => {
+  const opt = document.createElement('option');
+  opt.value = group;
+  opt.textContent = group;
+  filterGroup.appendChild(opt);
+});
+
+tabScanBtn.addEventListener('click', () => {
+  tabScanBtn.classList.add('active');
+  tabListBtn.classList.remove('active');
+  scanTab.style.display = 'block';
+  listTab.style.display = 'none';
+});
+
+tabListBtn.addEventListener('click', () => {
+  tabListBtn.classList.add('active');
+  tabScanBtn.classList.remove('active');
+  scanTab.style.display = 'none';
+  listTab.style.display = 'block';
+  loadCards();
+});
+
+filterGroup.addEventListener('change', () => renderCards());
+
+async function loadCards() {
+  cardListContainer.innerHTML = '<div class="empty-state">불러오는 중...</div>';
+  try {
+    const res = await fetch(APPS_SCRIPT_URL + '?action=list');
+    const data = await res.json();
+    if (data.success) {
+      allCards = data.cards || [];
+      cardsLoaded = true;
+      renderCards();
+    } else {
+      cardListContainer.innerHTML = '<div class="empty-state">불러오기 실패: ' + (data.error || '') + '</div>';
+    }
+  } catch (err) {
+    cardListContainer.innerHTML = '<div class="empty-state">네트워크 오류로 불러오지 못했습니다</div>';
+  }
+}
+
+function renderCards() {
+  const filter = filterGroup.value;
+  const filtered = filter ? allCards.filter(c => c.group === filter) : allCards;
+
+  if (filtered.length === 0) {
+    cardListContainer.innerHTML = '<div class="empty-state">저장된 명함이 없습니다</div>';
+    return;
+  }
+
+  cardListContainer.innerHTML = filtered.map(card => {
+    const thumbSrc = card.fileId
+      ? 'https://drive.google.com/thumbnail?id=' + card.fileId + '&sz=w200'
+      : '';
+    const tags = [card.group, card.subgroup, card.subsubgroup].filter(Boolean)
+      .map(t => '<span>' + escapeHtml(t) + '</span>').join('');
+    return (
+      '<a class="card-item" href="' + (card.fileUrl || '#') + '" target="_blank" rel="noopener">' +
+        (thumbSrc ? '<img class="thumb" src="' + thumbSrc + '" loading="lazy">' : '<div class="thumb"></div>') +
+        '<div class="info">' +
+          '<div class="name">' + escapeHtml(card.name || '') + '</div>' +
+          '<div class="company">' + escapeHtml(card.company || '') + (card.title ? ' · ' + escapeHtml(card.title) : '') + '</div>' +
+          '<div class="meta">' + tags + '</div>' +
+        '</div>' +
+      '</a>'
+    );
+  }).join('');
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
