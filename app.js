@@ -327,7 +327,7 @@ fallbackInput.addEventListener('change', (e) => {
 // ---------- 토스트 ----------
 function showToast(msg, type) {
   const toast = document.getElementById('toast');
-  toast.textContent = msg;
+  toast.innerHTML = '<span class="dot"></span>' + escapeHtml(msg);
   toast.className = 'toast show ' + (type || '');
   setTimeout(() => { toast.className = 'toast'; }, 2800);
 }
