@@ -14,11 +14,11 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <style>
   :root{
-    --ink:#111318;
+    --ink:#15181E;
     --header:#14161C;
     --header2:#1C1F27;
-    --accent:#2F6FED;
-    --accent-dark:#2557C4;
+    --accent:#2746E6;
+    --accent-dark:#1B33B0;
     --gray:#6B7280;
     --gray-light:#9CA3AF;
     --line:#E7E8EC;
@@ -51,22 +51,27 @@
     padding-top:calc(16px + env(safe-area-inset-top,0px));
     border-bottom:1px solid var(--line);
   }
-  header .brand{
+  .brand-row{
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  .brand-row .brand{
     font-size:21px;
     font-weight:800;
-    letter-spacing:-0.5px;
+    letter-spacing:-0.04em;
     color:var(--ink);
+    line-height:1;
     cursor:pointer;
-    display:inline-block;
   }
-  header .brand-accent{
+  .brand-row .brand .brand-accent{
     color:var(--accent);
   }
-  header .sub{
-    font-size:12px;
+  .brand-row .sub{
+    font-size:11px;
     color:var(--gray);
-    margin-top:2px;
-    letter-spacing:-0.1px;
+    font-weight:600;
+    letter-spacing:0.02em;
   }
 
   .segment{
@@ -325,8 +330,10 @@
 </head>
 <body>
 <header>
-  <div class="brand" id="headerBrand">the<span class="brand-accent">o</span></div>
-  <div class="sub">명함스캔 · eXp</div>
+  <div class="brand-row">
+    <span class="brand" id="headerBrand">the<span class="brand-accent">o</span></span>
+    <span class="sub">명함스캔 · eXp</span>
+  </div>
 </header>
 <div class="segment">
   <button class="segment-btn active" id="tabScanBtn">촬영</button>
