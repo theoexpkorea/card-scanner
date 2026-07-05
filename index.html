@@ -298,7 +298,7 @@
 <body>
 <header>
   <div class="brand">📇 명함 스캔</div>
-  <div class="sub">Card Scanner · eXp Korea</div>
+  <div class="sub">Card Scanner · theo · eXp</div>
 </header>
 <div class="segment">
   <button class="segment-btn active" id="tabScanBtn">촬영</button>
@@ -384,6 +384,26 @@
         <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="dd-panel" id="ddFilterPanel"></div>
+    </div>
+  </div>
+  <div class="field filter-row" id="filterSubField" style="display:none;">
+    <label>소분류 필터</label>
+    <div class="dd" id="ddFilterSub">
+      <button type="button" class="dd-btn" id="ddFilterSubBtn">
+        <span class="dd-label" id="ddFilterSubLabel">전체 보기</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd-panel" id="ddFilterSubPanel"></div>
+    </div>
+  </div>
+  <div class="field filter-row" id="filterSubsubField" style="display:none;">
+    <label>범주 필터</label>
+    <div class="dd" id="ddFilterSubsub">
+      <button type="button" class="dd-btn" id="ddFilterSubsubBtn">
+        <span class="dd-label" id="ddFilterSubsubLabel">전체 보기</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="dd-panel" id="ddFilterSubsubPanel"></div>
     </div>
   </div>
   <div id="cardListContainer">

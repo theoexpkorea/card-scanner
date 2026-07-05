@@ -422,11 +422,44 @@ const tabListBtn = document.getElementById('tabListBtn');
 const scanTab = document.getElementById('scanTab');
 const listTab = document.getElementById('listTab');
 const cardListContainer = document.getElementById('cardListContainer');
+const filterSubField = document.getElementById('filterSubField');
+const filterSubsubField = document.getElementById('filterSubsubField');
+
+const ddFilterSub = makeDropdown('ddFilterSub', '전체 보기');
+const ddFilterSubsub = makeDropdown('ddFilterSubsub', '전체 보기');
 
 let allCards = [];
 
 ddFilter.setOptions(Object.keys(GROUP_STRUCTURE));
-ddFilter.onChange(() => renderCards());
+
+ddFilter.onChange((group) => {
+  filterSubField.style.display = 'none';
+  filterSubsubField.style.display = 'none';
+  ddFilterSub.setValue('');
+  ddFilterSubsub.setValue('');
+
+  const sub = GROUP_STRUCTURE[group];
+  if (sub && typeof sub === 'object') {
+    ddFilterSub.setOptions(Object.keys(sub));
+    filterSubField.style.display = 'block';
+  }
+  renderCards();
+});
+
+ddFilterSub.onChange((subgroup) => {
+  filterSubsubField.style.display = 'none';
+  ddFilterSubsub.setValue('');
+
+  const group = ddFilter.getValue();
+  const subsub = GROUP_STRUCTURE[group] && GROUP_STRUCTURE[group][subgroup];
+  if (Array.isArray(subsub)) {
+    ddFilterSubsub.setOptions(subsub);
+    filterSubsubField.style.display = 'block';
+  }
+  renderCards();
+});
+
+ddFilterSubsub.onChange(() => renderCards());
 
 tabScanBtn.addEventListener('click', () => {
   tabScanBtn.classList.add('active');
@@ -460,8 +493,14 @@ async function loadCards() {
 }
 
 function renderCards() {
-  const filter = ddFilter.getValue();
-  const filtered = filter ? allCards.filter(c => c.group === filter) : allCards;
+  const group = ddFilter.getValue();
+  const subgroup = ddFilterSub.getValue();
+  const subsubgroup = ddFilterSubsub.getValue();
+
+  let filtered = allCards;
+  if (group) filtered = filtered.filter(c => c.group === group);
+  if (subgroup) filtered = filtered.filter(c => c.subgroup === subgroup);
+  if (subsubgroup) filtered = filtered.filter(c => c.subsubgroup === subsubgroup);
 
   if (filtered.length === 0) {
     cardListContainer.innerHTML = '<div class="empty-state">저장된 명함이 없습니다</div>';
