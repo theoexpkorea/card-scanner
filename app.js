@@ -563,3 +563,76 @@ function renderCards() {
     );
   }).join('');
 }
+
+// ---------- 비밀번호 잠금 ----------
+(function() {
+  const lockScreen = document.getElementById('lockScreen');
+  const lockInput = document.getElementById('lockInput');
+  const lockBtn = document.getElementById('lockBtn');
+  const lockErr = document.getElementById('lockErr');
+
+  let correctPass = null;
+  let passLoaded = false;
+  let passLoading = false;
+
+  const PASS_CACHE_KEY = 'theo_card_pass_cache';
+
+  try {
+    const cached = localStorage.getItem(PASS_CACHE_KEY);
+    if (cached) {
+      correctPass = cached;
+      passLoaded = true;
+    }
+  } catch (e) {}
+
+  function unlock() {
+    lockScreen.style.display = 'none';
+  }
+
+  function tryUnlock() {
+    const entered = lockInput.value.trim();
+    if (!entered) { lockErr.textContent = '비밀번호를 입력해 주세요'; return; }
+    if (!passLoaded) {
+      if (!passLoading) {
+        lockErr.textContent = '서버에 연결하는 중...';
+        loadPass();
+      }
+      return;
+    }
+    if (entered === correctPass) {
+      unlock();
+    } else {
+      lockErr.textContent = '비밀번호가 틀렸습니다';
+      lockInput.value = '';
+      lockInput.focus();
+      lockInput.style.borderColor = '#E03A3A';
+      setTimeout(() => { lockInput.style.borderColor = ''; }, 800);
+    }
+  }
+
+  lockBtn.addEventListener('click', tryUnlock);
+  lockInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
+
+  async function loadPass() {
+    if (passLoading) return;
+    passLoading = true;
+    const hadCache = passLoaded;
+    try {
+      const res = await fetch(APPS_SCRIPT_URL + '?action=pass');
+      const data = await res.json();
+      if (data && data.pass !== undefined) {
+        correctPass = String(data.pass).trim();
+        passLoaded = true;
+        if (!hadCache) { lockErr.textContent = ''; lockInput.focus(); }
+        try { localStorage.setItem(PASS_CACHE_KEY, correctPass); } catch (e) {}
+      }
+    } catch (e) {
+      if (!hadCache) lockErr.textContent = '서버 연결이 원활하지 않습니다. 확인 버튼을 다시 눌러주세요';
+    } finally {
+      passLoading = false;
+    }
+  }
+
+  lockInput.focus();
+  loadPass();
+})();
