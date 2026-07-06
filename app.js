@@ -610,7 +610,7 @@ cardListContainer.addEventListener('click', (e) => {
   e.preventDefault();
   const phone = btn.dataset.phone;
   const cleanPhone = phone.replace(/[^0-9+]/g, '');
-  window.location.href = 'sms:' + cleanPhone + '?body=' + encodeURIComponent(MY_CARD_MESSAGE_PLAIN);
+  window.location.href = 'sms:' + cleanPhone;
 });
 
 // ---------- 비밀번호 잠금 ----------
