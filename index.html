@@ -316,15 +316,22 @@
 
   .card-item{
     display:flex;
-    gap:12px;
+    align-items:center;
+    gap:8px;
     background:var(--card-bg);
     border:1px solid var(--line);
     border-radius:14px;
     padding:11px;
     margin-bottom:10px;
+    box-shadow:0 1px 3px rgba(15,17,24,0.05);
+  }
+  .card-item-link{
+    display:flex;
+    flex:1;
+    min-width:0;
+    gap:12px;
     text-decoration:none;
     color:var(--ink);
-    box-shadow:0 1px 3px rgba(15,17,24,0.05);
   }
   .card-item .thumb{
     width:80px;height:50px;
@@ -351,6 +358,58 @@
     color:var(--gray);
     padding:60px 20px;
     font-size:13.5px;
+  }
+
+  .sms-list-btn{
+    flex-shrink:0;
+    width:38px;height:38px;
+    border-radius:50%;
+    background:var(--bg);
+    border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .sms-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
+  .sms-list-btn:active{background:var(--line);}
+
+  .sms-prompt{
+    margin-top:16px;
+    background:var(--card-bg);
+    border:1px solid var(--line);
+    border-radius:13px;
+    padding:16px;
+    text-align:center;
+  }
+  .sms-prompt-text{
+    font-size:13.5px;
+    font-weight:700;
+    color:var(--ink);
+    margin-bottom:12px;
+  }
+  .sms-send-btn{
+    width:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:7px;
+    padding:13px;
+    background:var(--bg);
+    color:var(--ink);
+    border:1px solid var(--line);
+    border-radius:11px;
+    font-size:14px;
+    font-weight:700;
+    margin-bottom:8px;
+  }
+  .sms-send-btn svg{width:17px;height:17px;stroke:var(--accent);}
+  .sms-send-btn:active{background:var(--line);}
+  .sms-skip-btn{
+    width:100%;
+    padding:10px;
+    background:transparent;
+    border:none;
+    color:var(--gray);
+    font-size:13px;
+    font-weight:600;
   }
   /* ---- 비밀번호 잠금 화면 ---- */
   #lockScreen{
@@ -467,6 +526,11 @@
   </div>
 
   <div class="field">
+    <label>상대방 연락처 <span style="color:var(--gray-light);font-weight:600;">(선택, 입력하면 내 명함을 문자로 보낼 수 있어요)</span></label>
+    <input type="tel" id="phone" placeholder="예: 010-1234-5678">
+  </div>
+
+  <div class="field">
     <label>그룹 <span class="required">필수</span></label>
     <div class="dd" id="ddGroup">
       <button type="button" class="dd-btn" id="ddGroupBtn">
@@ -500,6 +564,15 @@
   </div>
 
   <button class="submit-btn" id="submitBtn">저장</button>
+
+  <div class="sms-prompt" id="smsPrompt" style="display:none;">
+    <div class="sms-prompt-text">저장 완료! 상대방에게 내 명함을 문자로 보낼까요?</div>
+    <button class="sms-send-btn" id="smsSendBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      문자로 명함 보내기
+    </button>
+    <button class="sms-skip-btn" id="smsSkipBtn">건너뛰기</button>
+  </div>
 
 </div>
 

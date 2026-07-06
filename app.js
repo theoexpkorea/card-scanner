@@ -356,10 +356,19 @@ function showToast(msg, type) {
 // ---------- 저장 ----------
 const submitBtn = document.getElementById('submitBtn');
 
+const MY_CARD_MESSAGE = '안녕하세요, 오늘 만나 뵙게 되어 반갑습니다.\n김정혁 드림\neXp 코리아 공인중개사\n010-2489-4759\njunghyuk.kim@expkr.com';
+const MY_CARD_MESSAGE_PLAIN = '김정혁\neXp 코리아 공인중개사\n010-2489-4759\njunghyuk.kim@expkr.com';
+
+const smsPrompt = document.getElementById('smsPrompt');
+const smsSendBtn = document.getElementById('smsSendBtn');
+const smsSkipBtn = document.getElementById('smsSkipBtn');
+let pendingPhone = null;
+
 submitBtn.addEventListener('click', async () => {
   const name = document.getElementById('name').value.trim();
   const company = document.getElementById('company').value.trim();
   const title = document.getElementById('title').value.trim();
+  const phone = document.getElementById('phone').value.trim();
   const group = ddGroup.getValue();
   const subgroup = ddSubgroup.getValue();
   const subsubgroup = ddSubsubgroup.getValue();
@@ -385,7 +394,7 @@ submitBtn.addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
-        name, company, title, group, subgroup, subsubgroup,
+        name, company, title, phone, group, subgroup, subsubgroup,
         imageBase64: selectedImageBase64,
         mimeType: selectedImageMime
       })
@@ -393,8 +402,14 @@ submitBtn.addEventListener('click', async () => {
     const data = await res.json();
 
     if (data.success) {
-      showToast('저장 완료!', 'ok');
-      resetForm();
+      if (phone) {
+        pendingPhone = phone;
+        showToast('저장 완료!', 'ok');
+        smsPrompt.style.display = 'block';
+      } else {
+        showToast('저장 완료!', 'ok');
+        resetForm();
+      }
     } else {
       showToast('저장 실패: ' + (data.error || '알 수 없는 오류'), 'err');
     }
@@ -406,10 +421,28 @@ submitBtn.addEventListener('click', async () => {
   }
 });
 
+smsSendBtn.addEventListener('click', () => {
+  if (pendingPhone) {
+    const cleanPhone = pendingPhone.replace(/[^0-9+]/g, '');
+    const smsUrl = 'sms:' + cleanPhone + '?body=' + encodeURIComponent(MY_CARD_MESSAGE);
+    window.location.href = smsUrl;
+  }
+  smsPrompt.style.display = 'none';
+  pendingPhone = null;
+  resetForm();
+});
+
+smsSkipBtn.addEventListener('click', () => {
+  smsPrompt.style.display = 'none';
+  pendingPhone = null;
+  resetForm();
+});
+
 function resetForm() {
   document.getElementById('name').value = '';
   document.getElementById('company').value = '';
   document.getElementById('title').value = '';
+  document.getElementById('phone').value = '';
   ddGroup.setValue('');
   ddSubgroup.setValue('');
   ddSubsubgroup.setValue('');
@@ -429,6 +462,7 @@ function resetForm() {
   placeholder.style.display = 'flex';
   fallbackInput.value = '';
   galleryInput.value = '';
+  smsPrompt.style.display = 'none';
 }
 
 // ---------- 서비스워커 등록 (PWA 설치용) ----------
@@ -551,18 +585,33 @@ function renderCards() {
       : '';
     const tags = [card.group, card.subgroup, card.subsubgroup].filter(Boolean)
       .map(t => '<span>' + escapeHtml(t) + '</span>').join('');
+    const smsBtn = card.phone
+      ? '<button type="button" class="sms-list-btn" data-phone="' + escapeHtml(card.phone) + '" title="문자로 명함 보내기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>'
+      : '';
     return (
-      '<a class="card-item" href="' + (card.fileUrl || '#') + '" target="_blank" rel="noopener">' +
-        (thumbSrc ? '<img class="thumb" src="' + thumbSrc + '" loading="lazy">' : '<div class="thumb"></div>') +
-        '<div class="info">' +
-          '<div class="name">' + escapeHtml(card.name || '') + '</div>' +
-          '<div class="company">' + escapeHtml(card.company || '') + (card.title ? ' · ' + escapeHtml(card.title) : '') + '</div>' +
-          '<div class="meta">' + tags + '</div>' +
-        '</div>' +
-      '</a>'
+      '<div class="card-item">' +
+        '<a class="card-item-link" href="' + (card.fileUrl || '#') + '" target="_blank" rel="noopener">' +
+          (thumbSrc ? '<img class="thumb" src="' + thumbSrc + '" loading="lazy">' : '<div class="thumb"></div>') +
+          '<div class="info">' +
+            '<div class="name">' + escapeHtml(card.name || '') + '</div>' +
+            '<div class="company">' + escapeHtml(card.company || '') + (card.title ? ' · ' + escapeHtml(card.title) : '') + '</div>' +
+            '<div class="meta">' + tags + '</div>' +
+          '</div>' +
+        '</a>' +
+        smsBtn +
+      '</div>'
     );
   }).join('');
 }
+
+cardListContainer.addEventListener('click', (e) => {
+  const btn = e.target.closest('.sms-list-btn');
+  if (!btn) return;
+  e.preventDefault();
+  const phone = btn.dataset.phone;
+  const cleanPhone = phone.replace(/[^0-9+]/g, '');
+  window.location.href = 'sms:' + cleanPhone + '?body=' + encodeURIComponent(MY_CARD_MESSAGE_PLAIN);
+});
 
 // ---------- 비밀번호 잠금 ----------
 (function() {
