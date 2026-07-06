@@ -305,8 +305,7 @@ retakeBtn.addEventListener('click', (e) => {
   startCamera();
 });
 
-fallbackInput.addEventListener('change', (e) => {
-  const file = e.target.files[0];
+function handlePickedFile(file) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (evt) => {
@@ -322,6 +321,28 @@ fallbackInput.addEventListener('change', (e) => {
     img.src = evt.target.result;
   };
   reader.readAsDataURL(file);
+}
+
+fallbackInput.addEventListener('change', (e) => {
+  handlePickedFile(e.target.files[0]);
+});
+
+const galleryInput = document.getElementById('galleryInput');
+const galleryBtn = document.getElementById('galleryBtn');
+
+galleryBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  stopCamera();
+  video.style.display = 'none';
+  guideFrame.style.display = 'none';
+  guideLabel.style.display = 'none';
+  captureBtn.style.display = 'none';
+  nativeFallbackBtn.style.display = 'none';
+  galleryInput.click();
+});
+
+galleryInput.addEventListener('change', (e) => {
+  handlePickedFile(e.target.files[0]);
 });
 
 // ---------- 토스트 ----------
@@ -407,6 +428,7 @@ function resetForm() {
   cameraBox.classList.add('idle');
   placeholder.style.display = 'flex';
   fallbackInput.value = '';
+  galleryInput.value = '';
 }
 
 // ---------- 서비스워커 등록 (PWA 설치용) ----------
@@ -465,6 +487,9 @@ ddFilterSub.onChange((value) => {
 
 ddFilterSubsub.onChange(() => renderCards());
 
+const searchInput = document.getElementById('searchInput');
+searchInput.addEventListener('input', () => renderCards());
+
 tabScanBtn.addEventListener('click', () => {
   tabScanBtn.classList.add('active');
   tabListBtn.classList.remove('active');
@@ -507,11 +532,13 @@ function renderCards() {
   const group = rawGroup === ALL_OPTION ? '' : rawGroup;
   const subgroup = rawSubgroup === ALL_OPTION ? '' : rawSubgroup;
   const subsubgroup = rawSubsubgroup === ALL_OPTION ? '' : rawSubsubgroup;
+  const keyword = searchInput.value.trim().toLowerCase();
 
   let filtered = allCards;
   if (group) filtered = filtered.filter(c => c.group === group);
   if (subgroup) filtered = filtered.filter(c => c.subgroup === subgroup);
   if (subsubgroup) filtered = filtered.filter(c => c.subsubgroup === subsubgroup);
+  if (keyword) filtered = filtered.filter(c => (c.name || '').toLowerCase().includes(keyword));
 
   if (filtered.length === 0) {
     cardListContainer.innerHTML = '<div class="empty-state">저장된 명함이 없습니다</div>';

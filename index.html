@@ -169,6 +169,19 @@
     padding:8px 14px;border-radius:20px;font-size:12.5px;
     display:none;
   }
+  .gallery-btn{
+    display:block;
+    width:100%;
+    margin-top:10px;
+    padding:11px;
+    background:transparent;
+    border:1.5px dashed var(--line);
+    border-radius:11px;
+    color:var(--gray);
+    font-size:13.5px;
+    font-weight:600;
+  }
+  .gallery-btn:active{background:var(--bg);}
   .native-fallback{
     position:absolute;bottom:16px;left:14px;
     background:rgba(0,0,0,0.5);color:#fff;
@@ -291,6 +304,16 @@
 
   .filter-row{margin-bottom:14px;}
 
+  .list-filters{
+    position:sticky;
+    top:0;
+    z-index:55;
+    background:var(--bg);
+    margin:-14px -16px 0;
+    padding:14px 16px 2px;
+  }
+  .list-filters .field:first-child label{margin-bottom:6px;}
+
   .card-item{
     display:flex;
     gap:12px;
@@ -360,6 +383,8 @@
   </div>
   <canvas id="captureCanvas" style="display:none;"></canvas>
   <input type="file" id="fallbackInput" accept="image/*" capture="environment" style="display:none;">
+  <input type="file" id="galleryInput" accept="image/*" style="display:none;">
+  <button type="button" class="gallery-btn" id="galleryBtn">📁 갤러리에서 사진 선택</button>
 
   <div class="field">
     <label>이름 <span class="required">필수</span></label>
@@ -414,34 +439,40 @@
 </div>
 
 <div class="container" id="listTab" style="display:none;">
-  <div class="field filter-row">
-    <label>그룹 필터</label>
-    <div class="dd" id="ddFilter">
-      <button type="button" class="dd-btn" id="ddFilterBtn">
-        <span class="dd-label" id="ddFilterLabel">전체 보기</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      <div class="dd-panel" id="ddFilterPanel"></div>
+  <div class="list-filters" id="listFilters">
+    <div class="field">
+      <label>이름 검색</label>
+      <input type="text" id="searchInput" placeholder="이름으로 검색">
     </div>
-  </div>
-  <div class="field filter-row" id="filterSubField" style="display:none;">
-    <label>소분류 필터</label>
-    <div class="dd" id="ddFilterSub">
-      <button type="button" class="dd-btn" id="ddFilterSubBtn">
-        <span class="dd-label" id="ddFilterSubLabel">전체 보기</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      <div class="dd-panel" id="ddFilterSubPanel"></div>
+    <div class="field filter-row">
+      <label>그룹 필터</label>
+      <div class="dd" id="ddFilter">
+        <button type="button" class="dd-btn" id="ddFilterBtn">
+          <span class="dd-label" id="ddFilterLabel">전체 보기</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dd-panel" id="ddFilterPanel"></div>
+      </div>
     </div>
-  </div>
-  <div class="field filter-row" id="filterSubsubField" style="display:none;">
-    <label>범주 필터</label>
-    <div class="dd" id="ddFilterSubsub">
-      <button type="button" class="dd-btn" id="ddFilterSubsubBtn">
-        <span class="dd-label" id="ddFilterSubsubLabel">전체 보기</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-      </button>
-      <div class="dd-panel" id="ddFilterSubsubPanel"></div>
+    <div class="field filter-row" id="filterSubField" style="display:none;">
+      <label>소분류 필터</label>
+      <div class="dd" id="ddFilterSub">
+        <button type="button" class="dd-btn" id="ddFilterSubBtn">
+          <span class="dd-label" id="ddFilterSubLabel">전체 보기</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dd-panel" id="ddFilterSubPanel"></div>
+      </div>
+    </div>
+    <div class="field filter-row" id="filterSubsubField" style="display:none;">
+      <label>범주 필터</label>
+      <div class="dd" id="ddFilterSubsub">
+        <button type="button" class="dd-btn" id="ddFilterSubsubBtn">
+          <span class="dd-label" id="ddFilterSubsubLabel">전체 보기</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dd-panel" id="ddFilterSubsubPanel"></div>
+      </div>
     </div>
   </div>
   <div id="cardListContainer">
