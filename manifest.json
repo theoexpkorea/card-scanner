@@ -1,6 +1,6 @@
 {
   "name": "Card Scan",
-  "short_name": "Card Scan",
+  "short_name": "명함스캔",
   "description": "명함을 촬영하면 자동으로 Google Drive와 Sheets에 저장됩니다",
   "start_url": "./index.html",
   "scope": "./",
