@@ -360,7 +360,12 @@
     font-size:13.5px;
   }
 
-  .sms-list-btn{
+  .card-actions{
+    display:flex;
+    gap:6px;
+    flex-shrink:0;
+  }
+  .sms-list-btn, .call-list-btn{
     flex-shrink:0;
     width:38px;height:38px;
     border-radius:50%;
@@ -368,8 +373,8 @@
     border:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;
   }
-  .sms-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
-  .sms-list-btn:active{background:var(--line);}
+  .sms-list-btn svg, .call-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
+  .call-list-btn:active, .sms-list-btn:active{background:var(--line);}
 
   .sms-prompt{
     margin-top:16px;
