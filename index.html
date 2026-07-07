@@ -314,6 +314,31 @@
   }
   .list-filters .field:first-child label{margin-bottom:6px;}
 
+  .property-filter-banner{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    background:#EEF3FF;
+    border:1px solid #C7D7FB;
+    border-radius:11px;
+    padding:11px 14px;
+    margin-bottom:12px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .property-filter-banner button{
+    flex-shrink:0;
+    background:#fff;
+    border:1px solid #C7D7FB;
+    color:var(--accent);
+    border-radius:8px;
+    padding:5px 10px;
+    font-size:12px;
+    font-weight:700;
+  }
+
   .card-item{
     display:flex;
     align-items:center;
@@ -365,7 +390,7 @@
     gap:6px;
     flex-shrink:0;
   }
-  .sms-list-btn, .call-list-btn{
+  .sms-list-btn, .call-list-btn, .property-list-btn{
     flex-shrink:0;
     width:38px;height:38px;
     border-radius:50%;
@@ -373,8 +398,8 @@
     border:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;
   }
-  .sms-list-btn svg, .call-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
-  .call-list-btn:active, .sms-list-btn:active{background:var(--line);}
+  .sms-list-btn svg, .call-list-btn svg, .property-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
+  .call-list-btn:active, .sms-list-btn:active, .property-list-btn:active{background:var(--line);}
 
   .sms-prompt{
     margin-top:16px;
@@ -568,6 +593,11 @@
     </div>
   </div>
 
+  <div class="field" id="propertyNoField" style="display:none;">
+    <label>관련 매물번호 <span style="color:var(--gray-light);font-weight:600;">(선택)</span></label>
+    <input type="text" id="propertyNo" placeholder="예: 3204">
+  </div>
+
   <button class="submit-btn" id="submitBtn">저장</button>
 
   <div class="sms-prompt" id="smsPrompt" style="display:none;">
@@ -618,6 +648,7 @@
       </div>
     </div>
   </div>
+  <div id="propertyFilterBanner" style="display:none;"></div>
   <div id="cardListContainer">
     <div class="empty-state">불러오는 중...</div>
   </div>
@@ -625,6 +656,6 @@
 
 <div class="toast" id="toast"></div>
 
-<script src="app.js?v=3"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

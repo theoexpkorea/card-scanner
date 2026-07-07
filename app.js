@@ -1,6 +1,9 @@
 // ⚠️ Apps Script 배포 후 웹앱 URL을 여기에 붙여넣으세요
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFPY9gJxEJm_Ny-qqEViYWJ6l1cGptVLto7BR_jyLWk3A2KoV-shtR6ldKod1SdllB/exec';
 
+// 매물뷰 앱 등 외부에서 ?property=매물번호 형태로 넘어온 경우, 그 매물 관련 명함만 필터링해서 목록으로 바로 이동
+const URL_PROPERTY_FILTER = new URLSearchParams(window.location.search).get('property');
+
 // 그룹 구조 (Code.gs의 GROUP_STRUCTURE와 반드시 동일하게 유지)
 const GROUP_STRUCTURE = {
   '01. 고객': {
@@ -91,6 +94,18 @@ const ddFilter = makeDropdown('ddFilter', '전체 보기');
 
 const subgroupField = document.getElementById('subgroupField');
 const subsubgroupField = document.getElementById('subsubgroupField');
+const propertyNoField = document.getElementById('propertyNoField');
+const propertyNoInput = document.getElementById('propertyNo');
+
+const PROPERTY_LINKED_SUBGROUPS = ['매도임대', '매수임차'];
+
+function updatePropertyNoVisibility() {
+  const group = ddGroup.getValue();
+  const subgroup = ddSubgroup.getValue();
+  const shouldShow = group === '01. 고객' && PROPERTY_LINKED_SUBGROUPS.includes(subgroup);
+  propertyNoField.style.display = shouldShow ? 'block' : 'none';
+  if (!shouldShow) propertyNoInput.value = '';
+}
 
 ddGroup.setOptions(Object.keys(GROUP_STRUCTURE));
 
@@ -105,6 +120,7 @@ ddGroup.onChange((group) => {
     ddSubgroup.setOptions(Object.keys(sub));
     subgroupField.style.display = 'block';
   }
+  updatePropertyNoVisibility();
 });
 
 ddSubgroup.onChange((subgroup) => {
@@ -117,6 +133,7 @@ ddSubgroup.onChange((subgroup) => {
     ddSubsubgroup.setOptions(subsub);
     subsubgroupField.style.display = 'block';
   }
+  updatePropertyNoVisibility();
 });
 
 // ---------- 카메라 촬영 (라이브 프리뷰 + 명함 비율 가이드) ----------
@@ -395,6 +412,7 @@ submitBtn.addEventListener('click', async () => {
   const company = document.getElementById('company').value.trim();
   const title = document.getElementById('title').value.trim();
   const phone = document.getElementById('phone').value.trim();
+  const propertyNo = document.getElementById('propertyNo').value.trim();
   const group = ddGroup.getValue();
   const subgroup = ddSubgroup.getValue();
   const subsubgroup = ddSubsubgroup.getValue();
@@ -420,7 +438,7 @@ submitBtn.addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
-        name, company, title, phone, group, subgroup, subsubgroup,
+        name, company, title, phone, propertyNo, group, subgroup, subsubgroup,
         imageBase64: selectedImageBase64,
         mimeType: selectedImageMime
       })
@@ -469,6 +487,8 @@ function resetForm() {
   document.getElementById('company').value = '';
   document.getElementById('title').value = '';
   document.getElementById('phone').value = '';
+  document.getElementById('propertyNo').value = '';
+  propertyNoField.style.display = 'none';
   ddGroup.setValue('');
   ddSubgroup.setValue('');
   ddSubsubgroup.setValue('');
@@ -584,7 +604,30 @@ async function loadCards() {
   }
 }
 
+const propertyFilterBanner = document.getElementById('propertyFilterBanner');
+let propertyFilterActive = !!URL_PROPERTY_FILTER;
+
+function renderPropertyFilterBanner() {
+  if (!propertyFilterActive || !URL_PROPERTY_FILTER) {
+    propertyFilterBanner.style.display = 'none';
+    return;
+  }
+  propertyFilterBanner.style.display = 'block';
+  propertyFilterBanner.innerHTML =
+    '<div class="property-filter-banner">' +
+      '<span>🏢 매물번호 ' + escapeHtml(URL_PROPERTY_FILTER) + ' 관련 명함만 표시 중</span>' +
+      '<button type="button" id="clearPropertyFilterBtn">전체 보기</button>' +
+    '</div>';
+  document.getElementById('clearPropertyFilterBtn').addEventListener('click', () => {
+    propertyFilterActive = false;
+    renderPropertyFilterBanner();
+    renderCards();
+  });
+}
+
 function renderCards() {
+  renderPropertyFilterBanner();
+
   const rawGroup = ddFilter.getValue();
   const rawSubgroup = ddFilterSub.getValue();
   const rawSubsubgroup = ddFilterSubsub.getValue();
@@ -594,6 +637,9 @@ function renderCards() {
   const keyword = searchInput.value.trim().toLowerCase();
 
   let filtered = allCards;
+  if (propertyFilterActive && URL_PROPERTY_FILTER) {
+    filtered = filtered.filter(c => String(c.propertyNo || '').trim() === URL_PROPERTY_FILTER.trim());
+  }
   if (group) filtered = filtered.filter(c => c.group === group);
   if (subgroup) filtered = filtered.filter(c => c.subgroup === subgroup);
   if (subsubgroup) filtered = filtered.filter(c => c.subsubgroup === subsubgroup);
@@ -616,6 +662,9 @@ function renderCards() {
     const callBtn = card.phone
       ? '<a class="call-list-btn" href="tel:' + escapeHtml(String(card.phone).replace(/[^0-9+]/g, '')) + '" title="전화 걸기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>'
       : '';
+    const propertyBtn = card.propertyNo
+      ? '<a class="property-list-btn" href="https://theoexpkorea.github.io/exp-maemul/?q=' + encodeURIComponent(card.propertyNo) + '" target="_blank" rel="noopener" title="관련 매물 보기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>'
+      : '';
     return (
       '<div class="card-item">' +
         '<a class="card-item-link" href="' + (card.fileUrl || '#') + '" target="_blank" rel="noopener">' +
@@ -626,7 +675,7 @@ function renderCards() {
             '<div class="meta">' + tags + '</div>' +
           '</div>' +
         '</a>' +
-        (card.phone ? '<div class="card-actions">' + callBtn + smsBtn + '</div>' : '') +
+        ((card.phone || card.propertyNo) ? '<div class="card-actions">' + propertyBtn + callBtn + smsBtn + '</div>' : '') +
       '</div>'
     );
   }).join('');
@@ -664,6 +713,9 @@ cardListContainer.addEventListener('click', (e) => {
 
   function unlock() {
     lockScreen.style.display = 'none';
+    if (URL_PROPERTY_FILTER) {
+      tabListBtn.click();
+    }
   }
 
   function tryUnlock() {

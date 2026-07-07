@@ -1,5 +1,5 @@
-const CACHE_NAME = 'card-app-v2';
-const ASSETS = ['./', './index.html', './app.js?v=3', './manifest.json', './favicon.ico', './icons/icon-192.png', './icons/icon-512.png'];
+const CACHE_NAME = 'card-app-v4';
+const ASSETS = ['./', './index.html', './app.js?v=5', './manifest.json', './favicon.ico', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
