@@ -612,18 +612,38 @@ tabListBtn.addEventListener('click', () => {
   loadCards();
 });
 
+const CARDS_CACHE_KEY = 'theo_card_list_cache';
+
 async function loadCards() {
-  cardListContainer.innerHTML = '<div class="empty-state">불러오는 중...</div>';
+  // 저장된 목록이 있으면 즉시 먼저 보여주고, 최신 데이터는 뒤에서 조용히 갱신
+  let usedCache = false;
+  try {
+    const cached = localStorage.getItem(CARDS_CACHE_KEY);
+    if (cached) {
+      allCards = JSON.parse(cached);
+      renderCards();
+      usedCache = true;
+    }
+  } catch (e) {}
+
+  if (!usedCache) {
+    cardListContainer.innerHTML = '<div class="empty-state">불러오는 중...</div>';
+  }
+
   try {
     const data = await jsonp(APPS_SCRIPT_URL + '?action=list');
     if (data.success) {
       allCards = data.cards || [];
       renderCards();
-    } else {
+      try { localStorage.setItem(CARDS_CACHE_KEY, JSON.stringify(allCards)); } catch (e) {}
+    } else if (!usedCache) {
       cardListContainer.innerHTML = '<div class="empty-state">불러오기 실패: ' + escapeHtml(data.error || '') + '</div>';
     }
   } catch (err) {
-    cardListContainer.innerHTML = '<div class="empty-state">네트워크 오류로 불러오지 못했습니다</div>';
+    // 캐시로 이미 목록을 보여주고 있으면 조용히 무시 (다음 진입 때 다시 시도됨)
+    if (!usedCache) {
+      cardListContainer.innerHTML = '<div class="empty-state">네트워크 오류로 불러오지 못했습니다</div>';
+    }
   }
 }
 
