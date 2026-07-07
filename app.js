@@ -356,7 +356,7 @@ function showToast(msg, type) {
 // ---------- 저장 ----------
 const submitBtn = document.getElementById('submitBtn');
 
-const MY_CARD_MESSAGE = '안녕하세요, 오늘 만나 뵙게 되어 반갑습니다.\n\n김정혁\neXp 코리아 공인중개사\n010-2489-4759\njunghyuk.kim@expkr.com';
+const MY_CARD_MESSAGE = '안녕하세요 😊 오늘 만나 뵙게 되어 반갑습니다.\n\n김정혁\neXp 코리아 공인중개사\n010-2489-4759\njunghyuk.kim@expkr.com';
 const MY_CARD_MESSAGE_PLAIN = '김정혁\neXp 코리아 공인중개사\n010-2489-4759\njunghyuk.kim@expkr.com';
 
 const smsPrompt = document.getElementById('smsPrompt');
