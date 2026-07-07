@@ -341,8 +341,7 @@
 
   .card-item{
     display:flex;
-    align-items:center;
-    gap:8px;
+    flex-direction:column;
     background:var(--card-bg);
     border:1px solid var(--line);
     border-radius:14px;
@@ -387,8 +386,10 @@
 
   .card-actions{
     display:flex;
+    justify-content:flex-end;
     gap:6px;
-    flex-shrink:0;
+    padding-top:8px;
+    border-top:1px solid var(--line);
   }
   .sms-list-btn, .call-list-btn, .property-list-btn{
     flex-shrink:0;
