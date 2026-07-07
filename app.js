@@ -359,6 +359,32 @@ const submitBtn = document.getElementById('submitBtn');
 const MY_CARD_MESSAGE = '안녕하세요 😊 \n오늘 만나 뵙게 되어 반갑습니다.\n\n\n김정혁 \neXp 코리아 공인중개사 \n010-2489-4759\n junghyuk.kim@expkr.com';
 const MY_CARD_MESSAGE_PLAIN = '김정혁\neXp 코리아 공인중개사\n010-2489-4759\njunghyuk.kim@expkr.com';
 
+// GET 요청은 JSONP 방식으로 (fetch의 CORS 불안정성을 피하기 위해, 매물뷰 앱과 동일한 방식)
+function jsonp(url) {
+  return new Promise((resolve, reject) => {
+    const callbackName = 'jsonp_cb_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+    const script = document.createElement('script');
+
+    const cleanup = () => {
+      delete window[callbackName];
+      script.remove();
+    };
+
+    window[callbackName] = (data) => {
+      resolve(data);
+      cleanup();
+    };
+
+    script.onerror = () => {
+      reject(new Error('JSONP 요청 실패'));
+      cleanup();
+    };
+
+    script.src = url + (url.indexOf('?') === -1 ? '?' : '&') + 'callback=' + callbackName;
+    document.body.appendChild(script);
+  });
+}
+
 const smsPrompt = document.getElementById('smsPrompt');
 const smsSendBtn = document.getElementById('smsSendBtn');
 const smsSkipBtn = document.getElementById('smsSkipBtn');
@@ -546,8 +572,7 @@ tabListBtn.addEventListener('click', () => {
 async function loadCards() {
   cardListContainer.innerHTML = '<div class="empty-state">불러오는 중...</div>';
   try {
-    const res = await fetch(APPS_SCRIPT_URL + '?action=list');
-    const data = await res.json();
+    const data = await jsonp(APPS_SCRIPT_URL + '?action=list');
     if (data.success) {
       allCards = data.cards || [];
       renderCards();
@@ -589,7 +614,7 @@ function renderCards() {
       ? '<button type="button" class="sms-list-btn" data-phone="' + escapeHtml(card.phone) + '" title="문자로 명함 보내기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>'
       : '';
     const callBtn = card.phone
-      ? '<a class="call-list-btn" href="tel:' + escapeHtml(card.phone.replace(/[^0-9+]/g, '')) + '" title="전화 걸기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>'
+      ? '<a class="call-list-btn" href="tel:' + escapeHtml(String(card.phone).replace(/[^0-9+]/g, '')) + '" title="전화 걸기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>'
       : '';
     return (
       '<div class="card-item">' +
@@ -612,7 +637,7 @@ cardListContainer.addEventListener('click', (e) => {
   if (!btn) return;
   e.preventDefault();
   const phone = btn.dataset.phone;
-  const cleanPhone = phone.replace(/[^0-9+]/g, '');
+  const cleanPhone = String(phone).replace(/[^0-9+]/g, '');
   window.location.href = 'sms:' + cleanPhone;
 });
 
@@ -670,8 +695,7 @@ cardListContainer.addEventListener('click', (e) => {
     passLoading = true;
     const hadCache = passLoaded;
     try {
-      const res = await fetch(APPS_SCRIPT_URL + '?action=pass');
-      const data = await res.json();
+      const data = await jsonp(APPS_SCRIPT_URL + '?action=pass');
       if (data && data.pass !== undefined) {
         correctPass = String(data.pass).trim();
         passLoaded = true;
