@@ -415,13 +415,15 @@ function jsonpOnce(url, timeoutMs) {
   });
 }
 
-// 서버(Apps Script) 예열 지연이나 모바일 네트워크 순간 끊김 대비: 실패 시 최대 2번 더 자동 재시도
-function jsonp(url, retries, timeoutMs) {
-  retries = retries === undefined ? 2 : retries;
-  timeoutMs = timeoutMs === undefined ? 8000 : timeoutMs;
+// 서버(Apps Script) 예열 지연이나 모바일 네트워크 순간 끊김 대비: 실패 시 최대 3번 더 자동 재시도 (총 4회)
+function jsonp(url, retries, timeoutMs, attempt) {
+  retries = retries === undefined ? 3 : retries;
+  timeoutMs = timeoutMs === undefined ? 12000 : timeoutMs;
+  attempt = attempt === undefined ? 0 : attempt;
   return jsonpOnce(url, timeoutMs).catch((err) => {
     if (retries <= 0) throw err;
-    return new Promise((resolve) => setTimeout(resolve, 700)).then(() => jsonp(url, retries - 1, timeoutMs));
+    const wait = 700 * (attempt + 1); // 700ms, 1400ms, 2100ms로 점점 늘어남
+    return new Promise((resolve) => setTimeout(resolve, wait)).then(() => jsonp(url, retries - 1, timeoutMs, attempt + 1));
   });
 }
 
@@ -642,7 +644,9 @@ async function loadCards() {
   } catch (err) {
     // 캐시로 이미 목록을 보여주고 있으면 조용히 무시 (다음 진입 때 다시 시도됨)
     if (!usedCache) {
-      cardListContainer.innerHTML = '<div class="empty-state">네트워크 오류로 불러오지 못했습니다</div>';
+      cardListContainer.innerHTML = '<div class="empty-state">네트워크 오류로 불러오지 못했습니다<br><button id="retryLoadBtn" style="margin-top:10px;padding:8px 16px;border:1px solid #D1D5DB;border-radius:8px;background:#fff;font-size:14px;">다시 시도</button></div>';
+      const retryBtn = document.getElementById('retryLoadBtn');
+      if (retryBtn) retryBtn.addEventListener('click', loadCards);
     }
   }
 }
