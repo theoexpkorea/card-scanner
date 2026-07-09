@@ -694,10 +694,14 @@ function renderCards() {
   if (subsubgroup) filtered = filtered.filter(c => c.subsubgroup === subsubgroup);
   if (keyword) filtered = filtered.filter(c => (c.name || '').toLowerCase().includes(keyword));
 
+  const listCountLabel = document.getElementById('listCountLabel');
+
   if (filtered.length === 0) {
     cardListContainer.innerHTML = '<div class="empty-state">저장된 명함이 없습니다</div>';
+    if (listCountLabel) listCountLabel.textContent = '0명';
     return;
   }
+  if (listCountLabel) listCountLabel.textContent = filtered.length + '명';
 
   cardListContainer.innerHTML = filtered.map(card => {
     const thumbSrc = card.fileId
