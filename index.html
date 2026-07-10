@@ -573,9 +573,9 @@
   <div class="lock-sub">명함스캔 · eXp Korea</div>
   <div class="lock-box">
     <div class="lock-title"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;vertical-align:-2px;margin-right:4px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>비밀번호를 입력하세요</div>
-    <input id="lockInput" class="lock-input" type="password"
+    <input id="lockInput" class="lock-input" type="password" name="pin-code-not-a-password"
       inputmode="numeric" maxlength="8" placeholder=""
-      autocomplete="new-password" autocorrect="off" spellcheck="false">
+      autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false">
     <button class="lock-btn" id="lockBtn">확인</button>
     <div class="lock-err" id="lockErr"></div>
   </div>
