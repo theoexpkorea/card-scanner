@@ -621,6 +621,9 @@ tabScanBtn.addEventListener('click', () => {
 });
 
 document.getElementById('headerBrand').addEventListener('click', () => {
+  if (editingCardId) {
+    exitEditMode();
+  }
   tabScanBtn.click();
 });
 
@@ -1050,7 +1053,7 @@ function matchLocally(query) {
     const qPhone = normalizePhoneJS(query);
     return allCards.filter(c => normalizePhoneJS(c.phone) === qPhone);
   }
-  return allCards.filter(c => (c.name || '').trim() === query);
+  return allCards.filter(c => (c.name || '').trim().toLowerCase() === query.toLowerCase());
 }
 
 bulkPropertyPreviewBtn.addEventListener('click', () => {
