@@ -29,7 +29,8 @@ function escapeHtml(str) {
 }
 
 // ---------- 커스텀 드롭다운 컴포넌트 ----------
-function makeDropdown(id, placeholderText) {
+function makeDropdown(id, placeholderText, displayFn) {
+  displayFn = displayFn || (v => v);
   const btn = document.getElementById(id + 'Btn');
   const label = document.getElementById(id + 'Label');
   const panel = document.getElementById(id + 'Panel');
@@ -41,7 +42,7 @@ function makeDropdown(id, placeholderText) {
     panel.innerHTML = options.map(opt => {
       const isSel = opt === value;
       return '<div class="dd-item' + (isSel ? ' selected' : '') + '" data-val="' + escapeHtml(opt) + '">' +
-        escapeHtml(opt) + (isSel ? ' <span>✓</span>' : '') +
+        escapeHtml(displayFn(opt)) + (isSel ? ' <span>✓</span>' : '') +
       '</div>';
     }).join('');
   }
@@ -65,7 +66,7 @@ function makeDropdown(id, placeholderText) {
     const item = e.target.closest('.dd-item');
     if (!item) return;
     value = item.dataset.val;
-    label.textContent = value || placeholderText;
+    label.textContent = value ? displayFn(value) : placeholderText;
     label.classList.toggle('placeholder', !value);
     closeAll();
     render();
@@ -78,7 +79,7 @@ function makeDropdown(id, placeholderText) {
     setOptions(arr) { options = arr; render(); },
     setValue(v) {
       value = v || '';
-      label.textContent = value || placeholderText;
+      label.textContent = value ? displayFn(value) : placeholderText;
       label.classList.toggle('placeholder', !value);
       render();
     },
@@ -87,10 +88,13 @@ function makeDropdown(id, placeholderText) {
   };
 }
 
-const ddGroup = makeDropdown('ddGroup', '선택하세요');
+// 그룹(대분류) 값에서 "01. " 같은 앞 번호는 화면 표시에서만 떼고, 저장/필터링에 쓰이는 실제 값은 그대로 유지
+const stripGroupNumber = (v) => v.replace(/^\d+\.\s*/, '');
+
+const ddGroup = makeDropdown('ddGroup', '선택하세요', stripGroupNumber);
 const ddSubgroup = makeDropdown('ddSubgroup', '선택하세요');
 const ddSubsubgroup = makeDropdown('ddSubsubgroup', '선택하세요');
-const ddFilter = makeDropdown('ddFilter', '전체 보기');
+const ddFilter = makeDropdown('ddFilter', '전체 보기', stripGroupNumber);
 
 const subgroupField = document.getElementById('subgroupField');
 const subsubgroupField = document.getElementById('subsubgroupField');
@@ -672,6 +676,47 @@ function renderPropertyFilterBanner() {
   });
 }
 
+// 아웃룩 주소록 카테고리처럼 그룹/소분류/범주별로 차분한 색상 구분
+const TAG_PALETTE = [
+  { bg: '#E8F0FE', fg: '#3B5BA9' }, // 1 블루
+  { bg: '#E3F3EF', fg: '#2F7A6C' }, // 2 틸
+  { bg: '#EAF4E7', fg: '#4C7A3A' }, // 3 그린
+  { bg: '#FBF1E1', fg: '#9C6B1F' }, // 4 앰버
+  { bg: '#FCEEE4', fg: '#B25B27' }, // 5 오렌지
+  { bg: '#FBEAEE', fg: '#B14A64' }, // 6 로즈
+  { bg: '#F1EAFB', fg: '#6B4FA0' }, // 7 퍼플
+  { bg: '#FBEAF4', fg: '#A34B85' }, // 8 핑크
+  { bg: '#E5F5F8', fg: '#2A7C8C' }, // 9 시안
+  { bg: '#F3EDE7', fg: '#7A5A3E' }, // 10 브라운
+  { bg: '#EEF1F4', fg: '#556170' }, // 11 슬레이트
+  { bg: '#EAEBFB', fg: '#4B4FA0' }, // 12 인디고
+  { bg: '#F1F5E3', fg: '#5E7A1F' }, // 13 라임
+  { bg: '#FBF3D0', fg: '#8A6D12' }, // 14 골드
+  { bg: '#F7E7E0', fg: '#A5502F' }, // 15 테라코타
+  { bg: '#F5E9EF', fg: '#8A4D68' }, // 16 모브
+  { bg: '#E4EFFB', fg: '#2E6DA4' }, // 17 스카이
+  { bg: '#E9F1E5', fg: '#55744A' }, // 18 세이지
+  { bg: '#F6EFE3', fg: '#8A6A3E' }, // 19 샌드
+  { bg: '#EFE6F3', fg: '#6E3F7E' }, // 20 플럼
+];
+// 실제 사용 중인 그룹/소분류/범주는 색이 서로 겹치지 않도록 직접 지정
+// (여기 없는 새 값은 아래 hash로 자동 배정됨)
+const TAG_COLOR_MAP = {
+  '01. 고객': 0, '02. 부동산': 4, '03. 협력': 8, '04. eXp 코리아': 6,
+  '05. 지인': 2, '06. 편의': 13, '07. 임시저장': 10,
+  'VIP': 3, '매도임대': 14, '매수임차': 16, '공동중개': 5, '협력부동산': 17,
+  '관리인(매도임대)': 1, '매도임대인': 7, '임차인(매도인)': 15,
+  '관리인(매수임차)': 11, '매수임차인': 19,
+};
+function tagColor(text) {
+  if (Object.prototype.hasOwnProperty.call(TAG_COLOR_MAP, text)) {
+    return TAG_PALETTE[TAG_COLOR_MAP[text]];
+  }
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) >>> 0;
+  return TAG_PALETTE[hash % TAG_PALETTE.length];
+}
+
 function renderCards() {
   renderPropertyFilterBanner();
 
@@ -708,7 +753,11 @@ function renderCards() {
       ? 'https://drive.google.com/thumbnail?id=' + card.fileId + '&sz=w200'
       : '';
     const tags = [card.group, card.subgroup, card.subsubgroup].filter(Boolean)
-      .map(t => '<span>' + escapeHtml(t) + '</span>').join('');
+      .map(t => {
+        const c = tagColor(t);
+        const displayText = t.replace(/^\d+\.\s*/, '');
+        return '<span style="background:' + c.bg + ';color:' + c.fg + ';">' + escapeHtml(displayText) + '</span>';
+      }).join('');
     const smsBtn = card.phone
       ? '<button type="button" class="sms-list-btn" data-phone="' + escapeHtml(card.phone) + '" title="문자로 명함 보내기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>'
       : '';
