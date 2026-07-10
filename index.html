@@ -390,12 +390,13 @@
 
   .card-actions{
     display:flex;
+    flex-wrap:wrap;
     justify-content:flex-end;
     gap:6px;
     padding-top:8px;
     border-top:1px solid var(--line);
   }
-  .sms-list-btn, .call-list-btn, .property-list-btn, .edit-list-btn, .delete-list-btn{
+  .sms-list-btn, .call-list-btn, .property-list-btn, .edit-list-btn, .delete-list-btn, .mail-list-btn{
     flex-shrink:0;
     width:38px;height:38px;
     border-radius:50%;
@@ -403,9 +404,9 @@
     border:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;
   }
-  .sms-list-btn svg, .call-list-btn svg, .property-list-btn svg, .edit-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
+  .sms-list-btn svg, .call-list-btn svg, .property-list-btn svg, .edit-list-btn svg, .mail-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
   .delete-list-btn svg{width:17px;height:17px;stroke:var(--err);}
-  .call-list-btn:active, .sms-list-btn:active, .property-list-btn:active, .edit-list-btn:active{background:var(--line);}
+  .call-list-btn:active, .sms-list-btn:active, .property-list-btn:active, .edit-list-btn:active, .mail-list-btn:active{background:var(--line);}
   .delete-list-btn:active{background:#FBE1E1;}
 
   .cancel-edit-btn{
@@ -632,6 +633,11 @@
   </div>
 
   <div class="field">
+    <label>이메일 <span style="color:var(--gray-light);font-weight:600;">(선택, 입력하면 목록에서 바로 메일을 보낼 수 있어요)</span></label>
+    <input type="email" id="email" placeholder="예: name@company.com">
+  </div>
+
+  <div class="field">
     <label>그룹 <span class="required">필수</span></label>
     <div class="dd" id="ddGroup">
       <button type="button" class="dd-btn" id="ddGroupBtn">
@@ -752,6 +758,6 @@
   </div>
 </div>
 
-<script src="app.js?v=22"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>

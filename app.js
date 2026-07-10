@@ -441,6 +441,7 @@ submitBtn.addEventListener('click', async () => {
   const company = document.getElementById('company').value.trim();
   const title = document.getElementById('title').value.trim();
   const phone = document.getElementById('phone').value.trim();
+  const email = document.getElementById('email').value.trim();
   const propertyNo = document.getElementById('propertyNo').value.trim();
   const group = ddGroup.getValue();
   const subgroup = ddSubgroup.getValue();
@@ -465,7 +466,7 @@ submitBtn.addEventListener('click', async () => {
 
   try {
     const payload = {
-      name, company, title, phone, propertyNo, group, subgroup, subsubgroup
+      name, company, title, phone, email, propertyNo, group, subgroup, subsubgroup
     };
     if (selectedImageBase64) {
       payload.imageBase64 = selectedImageBase64;
@@ -530,6 +531,7 @@ function resetForm() {
   document.getElementById('company').value = '';
   document.getElementById('title').value = '';
   document.getElementById('phone').value = '';
+  document.getElementById('email').value = '';
   document.getElementById('propertyNo').value = '';
   propertyNoField.style.display = 'none';
   ddGroup.setValue('');
@@ -783,6 +785,9 @@ function renderCards() {
     const callBtn = card.phone
       ? '<a class="call-list-btn" href="tel:' + escapeHtml(String(card.phone).replace(/[^0-9+]/g, '')) + '" title="전화 걸기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>'
       : '';
+    const mailBtn = card.email
+      ? '<a class="mail-list-btn" href="mailto:' + escapeHtml(card.email) + '?subject=' + encodeURIComponent('명함 전달드립니다') + '&body=' + encodeURIComponent(MY_CARD_MESSAGE) + '" title="이메일 보내기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></a>'
+      : '';
     const propertyNos = (card.propertyNo || '').split(',').map(s => s.trim()).filter(Boolean);
     const propertyBtn = propertyNos.map(pn =>
       '<a class="property-list-btn" href="https://theoexpkorea.github.io/exp-maemul/?q=' + encodeURIComponent(pn) + '" target="_blank" rel="noopener" title="관련 매물 보기 (' + escapeHtml(pn) + ')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>'
@@ -799,7 +804,7 @@ function renderCards() {
             '<div class="meta">' + tags + '</div>' +
           '</div>' +
         '</a>' +
-        '<div class="card-actions">' + propertyBtn + callBtn + smsBtn + editBtn + deleteBtn + '</div>' +
+        '<div class="card-actions">' + propertyBtn + callBtn + smsBtn + mailBtn + editBtn + deleteBtn + '</div>' +
       '</div>'
     );
   }).join('');
@@ -940,6 +945,7 @@ function enterEditMode(card) {
   document.getElementById('company').value = card.company || '';
   document.getElementById('title').value = card.title || '';
   document.getElementById('phone').value = card.phone || '';
+  document.getElementById('email').value = card.email || '';
   document.getElementById('propertyNo').value = card.propertyNo || '';
   populateGroupChain(card.group, card.subgroup, card.subsubgroup);
 
@@ -1140,9 +1146,9 @@ exportCsvBtn.addEventListener('click', () => {
     return;
   }
 
-  const headers = ['First Name', 'Company', 'Job Title', 'Mobile Phone'];
+  const headers = ['First Name', 'Company', 'Job Title', 'Mobile Phone', 'E-mail Address'];
   const rows = cards.map(c => {
-    return [c.name || '', c.company || '', c.title || '', c.phone || '']
+    return [c.name || '', c.company || '', c.title || '', c.phone || '', c.email || '']
       .map(csvEscape).join(',');
   });
 
