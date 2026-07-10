@@ -1,4 +1,4 @@
-const CACHE_NAME = 'card-app-v22';
+const CACHE_NAME = 'card-app-v23';
 const ASSETS = ['./', './index.html', './app.js?v=22', './manifest.json', './favicon.ico', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', (event) => {
