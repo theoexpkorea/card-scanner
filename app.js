@@ -575,6 +575,7 @@ const ddFilterSubsub = makeDropdown('ddFilterSubsub', '전체 보기');
 const ALL_OPTION = '전체 보기';
 
 let allCards = [];
+let lastFilteredCards = [];
 
 ddFilter.setOptions([ALL_OPTION, ...Object.keys(GROUP_STRUCTURE)]);
 
@@ -683,7 +684,7 @@ function renderPropertyFilterBanner() {
   propertyFilterBanner.style.display = 'block';
   propertyFilterBanner.innerHTML =
     '<div class="property-filter-banner">' +
-      '<span>🏢 매물번호 ' + escapeHtml(URL_PROPERTY_FILTER) + ' 관련 명함만 표시 중</span>' +
+      '<span><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"><rect x="4" y="2" width="16" height="20" rx="1"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="9" y2="14.01"/><line x1="15" y1="14" x2="15" y2="14.01"/></svg>매물번호 ' + escapeHtml(URL_PROPERTY_FILTER) + ' 관련 명함만 표시 중</span>' +
       '<button type="button" id="clearPropertyFilterBtn">전체 보기</button>' +
     '</div>';
   document.getElementById('clearPropertyFilterBtn').addEventListener('click', () => {
@@ -756,6 +757,7 @@ function renderCards() {
   if (subsubgroup) filtered = filtered.filter(c => c.subsubgroup === subsubgroup);
   if (keyword) filtered = filtered.filter(c => (c.name || '').toLowerCase().includes(keyword));
 
+  lastFilteredCards = filtered;
   const listCountLabel = document.getElementById('listCountLabel');
 
   if (filtered.length === 0) {
@@ -1118,4 +1120,44 @@ bulkPropertyApplyBtn.addEventListener('click', async () => {
     bulkPropertyApplyBtn.disabled = false;
     bulkPropertyApplyBtn.textContent = '일괄 적용';
   }
+});
+
+// ---------- CSV 내보내기 (아웃룩 가져오기용) ----------
+const exportCsvBtn = document.getElementById('exportCsvBtn');
+
+function csvEscape(v) {
+  const s = String(v == null ? '' : v);
+  if (/[",\n]/.test(s)) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+exportCsvBtn.addEventListener('click', () => {
+  const cards = lastFilteredCards.length ? lastFilteredCards : allCards;
+  if (!cards.length) {
+    showToast('내보낼 명함이 없습니다', 'err');
+    return;
+  }
+
+  const headers = ['First Name', 'Company', 'Job Title', 'Mobile Phone'];
+  const rows = cards.map(c => {
+    return [c.name || '', c.company || '', c.title || '', c.phone || '']
+      .map(csvEscape).join(',');
+  });
+
+  const csvContent = '\uFEFF' + headers.join(',') + '\r\n' + rows.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const now = new Date();
+  const dateStr = now.getFullYear() + String(now.getMonth() + 1).padStart(2, '0') + String(now.getDate()).padStart(2, '0');
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '명함스캔_내보내기_' + dateStr + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+  showToast(cards.length + '건 내보내기 완료', 'ok');
 });
