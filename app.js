@@ -992,7 +992,11 @@ async function deleteCardFlow(card) {
     });
     const data = await res.json();
     if (data.success) {
-      showToast('삭제되었습니다', 'ok');
+      if (data.photoWarning) {
+        showToast('시트에서 삭제됨 · ' + data.photoWarning, 'err');
+      } else {
+        showToast('삭제되었습니다', 'ok');
+      }
       allCards = allCards.filter(c => c.id !== card.id);
       try { localStorage.setItem(CARDS_CACHE_KEY, JSON.stringify(allCards)); } catch (e) {}
       renderCards();
