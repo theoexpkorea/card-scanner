@@ -958,8 +958,8 @@ function enterEditMode(card) {
     resultImg.style.display = 'none';
   }
 
-  editBanner.style.display = 'block';
-  cancelEditBtn.style.display = 'block';
+  editBanner && (editBanner.style.display = 'block');
+  cancelEditBtn && (cancelEditBtn.style.display = 'block');
   submitBtn.textContent = '수정 저장';
 
   tabScanBtn.click();
@@ -968,8 +968,8 @@ function enterEditMode(card) {
 
 function exitEditMode() {
   editingCardId = null;
-  editBanner.style.display = 'none';
-  cancelEditBtn.style.display = 'none';
+  if (editBanner) editBanner.style.display = 'none';
+  if (cancelEditBtn) cancelEditBtn.style.display = 'none';
   submitBtn.textContent = '저장';
   resetForm();
 }
