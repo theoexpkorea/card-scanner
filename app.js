@@ -751,7 +751,7 @@ function renderCards() {
   let filtered = allCards;
   if (propertyFilterActive && URL_PROPERTY_FILTER) {
     filtered = filtered.filter(c =>
-      String(c.propertyNo || '').split(',').map(s => s.trim()).includes(URL_PROPERTY_FILTER.trim())
+      String(c.propertyNo || '').split(',').map(s => s.trim().toUpperCase()).includes(URL_PROPERTY_FILTER.trim().toUpperCase())
     );
   }
   if (group) filtered = filtered.filter(c => c.group === group);
