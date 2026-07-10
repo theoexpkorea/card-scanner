@@ -626,6 +626,8 @@ tabScanBtn.addEventListener('click', () => {
 document.getElementById('headerBrand').addEventListener('click', () => {
   if (editingCardId) {
     exitEditMode();
+  } else {
+    resetForm();
   }
   tabScanBtn.click();
 });

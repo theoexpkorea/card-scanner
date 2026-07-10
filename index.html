@@ -405,9 +405,13 @@
     border:1px solid var(--line);
     display:flex;align-items:center;justify-content:center;
   }
-  .sms-list-btn svg, .call-list-btn svg, .property-list-btn svg, .edit-list-btn svg, .mail-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
+  .sms-list-btn svg, .call-list-btn svg, .property-list-btn svg, .mail-list-btn svg{width:17px;height:17px;stroke:var(--gray);}
+  .edit-list-btn{background:#EEF2FF;border-color:#C7D2FE;}
+  .edit-list-btn svg{width:17px;height:17px;stroke:var(--accent);}
+  .delete-list-btn{background:#FDECEC;border-color:#F5C2C2;}
   .delete-list-btn svg{width:17px;height:17px;stroke:var(--err);}
-  .call-list-btn:active, .sms-list-btn:active, .property-list-btn:active, .edit-list-btn:active, .mail-list-btn:active{background:var(--line);}
+  .call-list-btn:active, .sms-list-btn:active, .property-list-btn:active, .mail-list-btn:active{background:var(--line);}
+  .edit-list-btn:active{background:#DDE3FE;}
   .delete-list-btn:active{background:#FBE1E1;}
 
   .cancel-edit-btn{
@@ -760,6 +764,6 @@
   </div>
 </div>
 
-<script src="app.js?v=26"></script>
+<script src="app.js?v=27"></script>
 </body>
 </html>
