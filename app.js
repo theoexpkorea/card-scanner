@@ -446,7 +446,8 @@ submitBtn.addEventListener('click', async () => {
   const subgroup = ddSubgroup.getValue();
   const subsubgroup = ddSubsubgroup.getValue();
 
-  if (!selectedImageBase64) {
+  // 수정 모드에서는 새 사진을 다시 찍지 않아도 기존 사진이 유지되므로 사진 필수 검사를 건너뜀
+  if (!editingCardId && !selectedImageBase64) {
     showToast('명함 사진을 먼저 촬영해주세요', 'err');
     return;
   }
@@ -460,22 +461,35 @@ submitBtn.addEventListener('click', async () => {
   }
 
   submitBtn.disabled = true;
-  submitBtn.textContent = '저장 중...';
+  submitBtn.textContent = editingCardId ? '수정 저장 중...' : '저장 중...';
 
   try {
+    const payload = {
+      name, company, title, phone, propertyNo, group, subgroup, subsubgroup
+    };
+    if (selectedImageBase64) {
+      payload.imageBase64 = selectedImageBase64;
+      payload.mimeType = selectedImageMime;
+    }
+    if (editingCardId) {
+      payload.action = 'update';
+      payload.id = editingCardId;
+    }
+
     const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({
-        name, company, title, phone, propertyNo, group, subgroup, subsubgroup,
-        imageBase64: selectedImageBase64,
-        mimeType: selectedImageMime
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
 
     if (data.success) {
-      if (phone) {
+      if (editingCardId) {
+        showToast('수정 완료!', 'ok');
+        exitEditMode();
+        tabListBtn.click();
+        loadCards();
+      } else if (phone) {
         pendingPhone = phone;
         showToast('저장 완료!', 'ok');
         smsPrompt.style.display = 'block';
@@ -484,13 +498,13 @@ submitBtn.addEventListener('click', async () => {
         resetForm();
       }
     } else {
-      showToast('저장 실패: ' + (data.error || '알 수 없는 오류'), 'err');
+      showToast((editingCardId ? '수정 실패: ' : '저장 실패: ') + (data.error || '알 수 없는 오류'), 'err');
     }
   } catch (err) {
     showToast('네트워크 오류: ' + err.message, 'err');
   } finally {
     submitBtn.disabled = false;
-    submitBtn.textContent = '저장';
+    submitBtn.textContent = editingCardId ? '수정 저장' : '저장';
   }
 });
 
@@ -768,6 +782,8 @@ function renderCards() {
     const propertyBtn = propertyNos.map(pn =>
       '<a class="property-list-btn" href="https://theoexpkorea.github.io/exp-maemul/?q=' + encodeURIComponent(pn) + '" target="_blank" rel="noopener" title="관련 매물 보기 (' + escapeHtml(pn) + ')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>'
     ).join('');
+    const editBtn = '<button type="button" class="edit-list-btn" data-id="' + escapeHtml(card.id || '') + '" title="수정"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></button>';
+    const deleteBtn = '<button type="button" class="delete-list-btn" data-id="' + escapeHtml(card.id || '') + '" title="삭제"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg></button>';
     return (
       '<div class="card-item">' +
         '<a class="card-item-link" href="' + (card.fileUrl || '#') + '" target="_blank" rel="noopener">' +
@@ -778,19 +794,35 @@ function renderCards() {
             '<div class="meta">' + tags + '</div>' +
           '</div>' +
         '</a>' +
-        ((card.phone || card.propertyNo) ? '<div class="card-actions">' + propertyBtn + callBtn + smsBtn + '</div>' : '') +
+        '<div class="card-actions">' + propertyBtn + callBtn + smsBtn + editBtn + deleteBtn + '</div>' +
       '</div>'
     );
   }).join('');
 }
 
 cardListContainer.addEventListener('click', (e) => {
-  const btn = e.target.closest('.sms-list-btn');
-  if (!btn) return;
-  e.preventDefault();
-  const phone = btn.dataset.phone;
-  const cleanPhone = String(phone).replace(/[^0-9+]/g, '');
-  window.location.href = 'sms:' + cleanPhone;
+  const smsBtn = e.target.closest('.sms-list-btn');
+  if (smsBtn) {
+    e.preventDefault();
+    const phone = smsBtn.dataset.phone;
+    const cleanPhone = String(phone).replace(/[^0-9+]/g, '');
+    window.location.href = 'sms:' + cleanPhone;
+    return;
+  }
+  const editBtn = e.target.closest('.edit-list-btn');
+  if (editBtn) {
+    e.preventDefault();
+    const card = allCards.find(c => c.id === editBtn.dataset.id);
+    if (card) enterEditMode(card);
+    return;
+  }
+  const deleteBtn = e.target.closest('.delete-list-btn');
+  if (deleteBtn) {
+    e.preventDefault();
+    const card = allCards.find(c => c.id === deleteBtn.dataset.id);
+    if (card) deleteCardFlow(card);
+    return;
+  }
 });
 
 // ---------- 비밀번호 잠금 ----------
@@ -867,3 +899,216 @@ cardListContainer.addEventListener('click', (e) => {
   lockInput.focus();
   loadPass();
 })();
+
+// ---------- 명함 수정 ----------
+let editingCardId = null;
+const editBanner = document.getElementById('editBanner');
+const cancelEditBtn = document.getElementById('cancelEditBtn');
+
+function populateGroupChain(group, subgroup, subsubgroup) {
+  ddGroup.setValue(group || '');
+  subgroupField.style.display = 'none';
+  subsubgroupField.style.display = 'none';
+  ddSubgroup.setValue('');
+  ddSubsubgroup.setValue('');
+
+  const sub = GROUP_STRUCTURE[group];
+  if (sub && typeof sub === 'object') {
+    ddSubgroup.setOptions(Object.keys(sub));
+    subgroupField.style.display = 'block';
+    ddSubgroup.setValue(subgroup || '');
+
+    const subsub = sub[subgroup];
+    if (Array.isArray(subsub)) {
+      ddSubsubgroup.setOptions(subsub);
+      subsubgroupField.style.display = 'block';
+      ddSubsubgroup.setValue(subsubgroup || '');
+    }
+  }
+  updatePropertyNoVisibility();
+}
+
+function enterEditMode(card) {
+  editingCardId = card.id;
+
+  document.getElementById('name').value = card.name || '';
+  document.getElementById('company').value = card.company || '';
+  document.getElementById('title').value = card.title || '';
+  document.getElementById('phone').value = card.phone || '';
+  document.getElementById('propertyNo').value = card.propertyNo || '';
+  populateGroupChain(card.group, card.subgroup, card.subsubgroup);
+
+  selectedImageBase64 = null;
+  stopCamera();
+  cameraBox.classList.remove('idle');
+  placeholder.style.display = 'none';
+  video.style.display = 'none';
+  guideFrame.style.display = 'none';
+  guideLabel.style.display = 'none';
+  captureBtn.style.display = 'none';
+  nativeFallbackBtn.style.display = 'none';
+  retakeBtn.style.display = 'block';
+  if (card.fileId) {
+    resultImg.src = 'https://drive.google.com/thumbnail?id=' + card.fileId + '&sz=w800';
+    resultImg.style.display = 'block';
+  } else {
+    resultImg.style.display = 'none';
+  }
+
+  editBanner.style.display = 'block';
+  cancelEditBtn.style.display = 'block';
+  submitBtn.textContent = '수정 저장';
+
+  tabScanBtn.click();
+  window.scrollTo(0, 0);
+}
+
+function exitEditMode() {
+  editingCardId = null;
+  editBanner.style.display = 'none';
+  cancelEditBtn.style.display = 'none';
+  submitBtn.textContent = '저장';
+  resetForm();
+}
+
+cancelEditBtn.addEventListener('click', () => {
+  exitEditMode();
+  tabListBtn.click();
+});
+
+// ---------- 명함 삭제 ----------
+async function deleteCardFlow(card) {
+  const ok = window.confirm('"' + card.name + '" 명함을 삭제할까요?\n사진은 구글 드라이브 휴지통으로 이동합니다 (30일 내 복구 가능).');
+  if (!ok) return;
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'delete', id: card.id, trashPhoto: true })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('삭제되었습니다', 'ok');
+      allCards = allCards.filter(c => c.id !== card.id);
+      try { localStorage.setItem(CARDS_CACHE_KEY, JSON.stringify(allCards)); } catch (e) {}
+      renderCards();
+    } else {
+      showToast('삭제 실패: ' + (data.error || '알 수 없는 오류'), 'err');
+    }
+  } catch (err) {
+    showToast('네트워크 오류: ' + err.message, 'err');
+  }
+}
+
+// ---------- 매물번호 일괄 반영 ----------
+const bulkPropertyBtn = document.getElementById('bulkPropertyBtn');
+const bulkPropertyOverlay = document.getElementById('bulkPropertyOverlay');
+const bulkPropertyCloseBtn = document.getElementById('bulkPropertyCloseBtn');
+const bulkPropertyInput = document.getElementById('bulkPropertyInput');
+const bulkPropertyStep1 = document.getElementById('bulkPropertyStep1');
+const bulkPropertyStep2 = document.getElementById('bulkPropertyStep2');
+const bulkPropertyResults = document.getElementById('bulkPropertyResults');
+const bulkPropertyPreviewBtn = document.getElementById('bulkPropertyPreviewBtn');
+const bulkPropertyApplyBtn = document.getElementById('bulkPropertyApplyBtn');
+const bulkPropertyBackBtn = document.getElementById('bulkPropertyBackBtn');
+
+let bulkParsedRows = [];
+
+function normalizePhoneJS(v) { return String(v || '').replace(/[^0-9]/g, ''); }
+function looksLikePhoneJS(v) {
+  const s = String(v || '').trim();
+  return /^[0-9\-+\s]+$/.test(s) && normalizePhoneJS(s).length >= 4;
+}
+
+function openBulkPropertyModal() {
+  bulkPropertyOverlay.style.display = 'flex';
+  bulkPropertyStep1.style.display = 'block';
+  bulkPropertyStep2.style.display = 'none';
+  bulkPropertyInput.value = '';
+}
+function closeBulkPropertyModal() {
+  bulkPropertyOverlay.style.display = 'none';
+}
+bulkPropertyBtn.addEventListener('click', openBulkPropertyModal);
+bulkPropertyCloseBtn.addEventListener('click', closeBulkPropertyModal);
+bulkPropertyBackBtn.addEventListener('click', () => {
+  bulkPropertyStep1.style.display = 'block';
+  bulkPropertyStep2.style.display = 'none';
+});
+
+function parseBulkInput(text) {
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const idx = line.indexOf(',');
+    if (idx === -1) return { query: line, propertyNo: '' };
+    return { query: line.slice(0, idx).trim(), propertyNo: line.slice(idx + 1).trim() };
+  });
+}
+
+function matchLocally(query) {
+  if (looksLikePhoneJS(query)) {
+    const qPhone = normalizePhoneJS(query);
+    return allCards.filter(c => normalizePhoneJS(c.phone) === qPhone);
+  }
+  return allCards.filter(c => (c.name || '').trim() === query);
+}
+
+bulkPropertyPreviewBtn.addEventListener('click', () => {
+  const rows = parseBulkInput(bulkPropertyInput.value);
+  if (rows.length === 0) {
+    showToast('붙여넣은 내용이 없습니다', 'err');
+    return;
+  }
+  bulkParsedRows = rows.map(r => ({ ...r, matches: matchLocally(r.query) }));
+
+  bulkPropertyResults.innerHTML = bulkParsedRows.map(r => {
+    let statusHtml;
+    if (r.matches.length === 1) {
+      statusHtml = '<span class="bulk-result-status bulk-status-updated">✓ ' + escapeHtml(r.propertyNo || '(비우기)') + '</span>';
+    } else if (r.matches.length === 0) {
+      statusHtml = '<span class="bulk-result-status bulk-status-not_found">일치하는 명함 없음</span>';
+    } else {
+      statusHtml = '<span class="bulk-result-status bulk-status-ambiguous">동명 ' + r.matches.length + '건, 건너뜀</span>';
+    }
+    return '<div class="bulk-result-row"><span>' + escapeHtml(r.query) + '</span>' + statusHtml + '</div>';
+  }).join('');
+
+  const applyCount = bulkParsedRows.filter(r => r.matches.length === 1).length;
+  bulkPropertyApplyBtn.textContent = '일괄 적용 (' + applyCount + '건)';
+  bulkPropertyApplyBtn.disabled = applyCount === 0;
+
+  bulkPropertyStep1.style.display = 'none';
+  bulkPropertyStep2.style.display = 'block';
+});
+
+bulkPropertyApplyBtn.addEventListener('click', async () => {
+  const mappings = bulkParsedRows
+    .filter(r => r.matches.length === 1)
+    .map(r => ({ query: r.query, propertyNo: r.propertyNo }));
+
+  if (mappings.length === 0) return;
+
+  bulkPropertyApplyBtn.disabled = true;
+  bulkPropertyApplyBtn.textContent = '적용 중...';
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'bulkProperty', mappings: mappings })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('일괄 반영 완료 (' + mappings.length + '건)', 'ok');
+      closeBulkPropertyModal();
+      loadCards();
+    } else {
+      showToast('일괄 반영 실패: ' + (data.error || '알 수 없는 오류'), 'err');
+    }
+  } catch (err) {
+    showToast('네트워크 오류: ' + err.message, 'err');
+  } finally {
+    bulkPropertyApplyBtn.disabled = false;
+    bulkPropertyApplyBtn.textContent = '일괄 적용';
+  }
+});
