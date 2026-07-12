@@ -97,8 +97,11 @@ const ddGroup = makeDropdown('ddGroup', '선택하세요', stripGroupNumber);
 const ddSubgroup = makeDropdown('ddSubgroup', '선택하세요');
 const ddSubsubgroup = makeDropdown('ddSubsubgroup', '선택하세요');
 const ddFilter = makeDropdown('ddFilter', '전체 보기', stripGroupNumber);
-const sortSelect = document.getElementById('sortSelect');
-sortSelect.addEventListener('change', () => renderCards());
+const SORT_OPTIONS = ['최신 등록순', '오래된순', '이름순(가나다)'];
+const ddSort = makeDropdown('ddSort', '최신 등록순');
+ddSort.setOptions(SORT_OPTIONS);
+ddSort.setValue('최신 등록순');
+ddSort.onChange(() => renderCards());
 
 const subgroupField = document.getElementById('subgroupField');
 const subsubgroupField = document.getElementById('subsubgroupField');
@@ -784,14 +787,14 @@ function renderCards() {
   if (subsubgroup) filtered = filtered.filter(c => c.subsubgroup === subsubgroup);
   if (keyword) filtered = filtered.filter(c => (c.name || '').toLowerCase().includes(keyword));
 
-  const sortMode = sortSelect.value;
+  const sortMode = ddSort.getValue();
   filtered = filtered.slice(); // allCards 원본 순서를 건드리지 않도록 복사
-  if (sortMode === 'name') {
+  if (sortMode === '이름순(가나다)') {
     filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
-  } else if (sortMode === 'oldest') {
+  } else if (sortMode === '오래된순') {
     filtered.reverse(); // allCards는 이미 최신순이므로 뒤집으면 오래된순
   }
-  // 'latest'는 allCards의 기본 순서 그대로 사용
+  // '최신 등록순'은 allCards의 기본 순서 그대로 사용
 
   lastFilteredCards = filtered;
   const listCountLabel = document.getElementById('listCountLabel');
