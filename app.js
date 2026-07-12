@@ -97,6 +97,8 @@ const ddGroup = makeDropdown('ddGroup', '선택하세요', stripGroupNumber);
 const ddSubgroup = makeDropdown('ddSubgroup', '선택하세요');
 const ddSubsubgroup = makeDropdown('ddSubsubgroup', '선택하세요');
 const ddFilter = makeDropdown('ddFilter', '전체 보기', stripGroupNumber);
+const sortSelect = document.getElementById('sortSelect');
+sortSelect.addEventListener('change', () => renderCards());
 
 const subgroupField = document.getElementById('subgroupField');
 const subsubgroupField = document.getElementById('subsubgroupField');
@@ -781,6 +783,15 @@ function renderCards() {
   if (subgroup) filtered = filtered.filter(c => c.subgroup === subgroup);
   if (subsubgroup) filtered = filtered.filter(c => c.subsubgroup === subsubgroup);
   if (keyword) filtered = filtered.filter(c => (c.name || '').toLowerCase().includes(keyword));
+
+  const sortMode = sortSelect.value;
+  filtered = filtered.slice(); // allCards 원본 순서를 건드리지 않도록 복사
+  if (sortMode === 'name') {
+    filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'ko'));
+  } else if (sortMode === 'oldest') {
+    filtered.reverse(); // allCards는 이미 최신순이므로 뒤집으면 오래된순
+  }
+  // 'latest'는 allCards의 기본 순서 그대로 사용
 
   lastFilteredCards = filtered;
   const listCountLabel = document.getElementById('listCountLabel');
