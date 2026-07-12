@@ -103,14 +103,9 @@ const subsubgroupField = document.getElementById('subsubgroupField');
 const propertyNoField = document.getElementById('propertyNoField');
 const propertyNoInput = document.getElementById('propertyNo');
 
-const PROPERTY_LINKED_SUBGROUPS = ['매도임대', '매수임차'];
-
 function updatePropertyNoVisibility() {
-  const group = ddGroup.getValue();
-  const subgroup = ddSubgroup.getValue();
-  const shouldShow = group === '01. 고객' && PROPERTY_LINKED_SUBGROUPS.includes(subgroup);
-  propertyNoField.style.display = shouldShow ? 'block' : 'none';
-  if (!shouldShow) propertyNoInput.value = '';
+  // 그룹/소분류와 상관없이 항상 노출 (매도임대/매수임차 고객이 아니어도 관련 매물을 적어둘 수 있어야 함)
+  propertyNoField.style.display = 'block';
 }
 
 ddGroup.setOptions(Object.keys(GROUP_STRUCTURE));
@@ -535,7 +530,7 @@ function resetForm() {
   document.getElementById('phone').value = '';
   document.getElementById('email').value = '';
   document.getElementById('propertyNo').value = '';
-  propertyNoField.style.display = 'none';
+  propertyNoField.style.display = 'block';
   ddGroup.setValue('');
   ddSubgroup.setValue('');
   ddSubsubgroup.setValue('');
