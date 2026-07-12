@@ -1,5 +1,7 @@
 // ⚠️ Apps Script 배포 후 웹앱 URL을 여기에 붙여넣으세요
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFPY9gJxEJm_Ny-qqEViYWJ6l1cGptVLto7BR_jyLWk3A2KoV-shtR6ldKod1SdllB/exec';
+// 매물필터뷰의 실시간 매물 데이터 (거래완료 등으로 빠진 매물번호는 링크를 숨기기 위해 대조용으로 사용)
+const MAEMUL_DATA_URL = 'https://script.google.com/macros/s/AKfycbzDk9DYfD7okIfp4_MH5asXVxgroC9qlYGL08yHL_0dXPDfWElTdKglhQ-BQxWVoiil/exec';
 
 // 매물뷰 앱 등 외부에서 ?property=매물번호 형태로 넘어온 경우, 그 매물 관련 명함만 필터링해서 목록으로 바로 이동
 const URL_PROPERTY_FILTER = new URLSearchParams(window.location.search).get('property');
@@ -638,6 +640,7 @@ tabListBtn.addEventListener('click', () => {
   scanTab.style.display = 'none';
   listTab.style.display = 'block';
   loadCards();
+  loadActivePropertySet();
 });
 
 const CARDS_CACHE_KEY = 'theo_card_list_cache';
@@ -739,6 +742,29 @@ function tagColor(text) {
   return TAG_PALETTE[hash % TAG_PALETTE.length];
 }
 
+// 매물필터뷰에 현재 살아있는 매물번호만 대조해서, 거래완료 등으로 빠진 매물은 링크를 숨기기 위한 Set
+let ACTIVE_PROPERTY_SET = null; // null이면 "아직 확인 전" → 이 경우엔 링크를 일단 보여줌(안전한 기본값)
+const ACTIVE_PROPERTY_CACHE_KEY = 'theo_active_property_cache';
+try {
+  const cachedActive = localStorage.getItem(ACTIVE_PROPERTY_CACHE_KEY);
+  if (cachedActive) ACTIVE_PROPERTY_SET = new Set(JSON.parse(cachedActive));
+} catch (e) {}
+
+async function loadActivePropertySet() {
+  try {
+    const data = await jsonp(MAEMUL_DATA_URL);
+    if (Array.isArray(data)) {
+      const set = new Set(data.map(d => String(d.id || '').trim().toUpperCase()).filter(Boolean));
+      ACTIVE_PROPERTY_SET = set;
+      try { localStorage.setItem(ACTIVE_PROPERTY_CACHE_KEY, JSON.stringify(Array.from(set))); } catch (e) {}
+      renderCards(); // 링크 표시 여부가 바뀔 수 있으므로 다시 그림
+    }
+  } catch (e) {
+    // 실패해도 조용히 무시 (캐시가 있으면 캐시로, 없으면 기존처럼 다 보여줌)
+  }
+}
+loadActivePropertySet();
+
 function renderCards() {
   renderPropertyFilterBanner();
 
@@ -790,7 +816,8 @@ function renderCards() {
     const mailBtn = card.email
       ? '<a class="mail-list-btn" href="mailto:' + escapeHtml(card.email) + '" title="이메일 보내기"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></a>'
       : '';
-    const propertyNos = (card.propertyNo || '').split(',').map(s => s.trim()).filter(Boolean);
+    const propertyNos = (card.propertyNo || '').split(',').map(s => s.trim()).filter(Boolean)
+      .filter(pn => ACTIVE_PROPERTY_SET === null || ACTIVE_PROPERTY_SET.has(pn.toUpperCase()));
     const propertyBtn = propertyNos.map(pn =>
       '<a class="property-list-btn" href="https://theoexpkorea.github.io/exp-maemul/?q=' + encodeURIComponent(pn) + '" target="_blank" rel="noopener" title="관련 매물 보기 (' + escapeHtml(pn) + ')"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>'
     ).join('');
