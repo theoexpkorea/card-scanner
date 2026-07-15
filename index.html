@@ -53,6 +53,11 @@
     padding:16px 20px 14px;
     padding-top:calc(16px + env(safe-area-inset-top,0px));
     border-bottom:1px solid var(--line);
+    max-width:480px; margin:0 auto; box-sizing:border-box;
+    border-left:1px solid var(--line); border-right:1px solid var(--line);
+  }
+  @media (min-width:481px){
+    body{background:#EEF0F3}
   }
   .brand-row{
     display:flex;
@@ -80,7 +85,7 @@
   .segment{
     display:flex;
     background:var(--bg);
-    margin:10px 20px 0;
+    max-width:calc(480px - 40px); margin:10px auto 0;
     padding:4px;
     border-radius:12px;
   }
@@ -101,7 +106,10 @@
     border:1px solid var(--line);
   }
 
-  .container{max-width:480px;margin:0 auto;padding:14px 16px 16px;}
+  .container{max-width:480px;margin:0 auto;padding:14px 16px 16px; box-sizing:border-box}
+  @media (min-width:481px){
+    .container{border-left:1px solid var(--line); border-right:1px solid var(--line); min-height:calc(100vh - 140px); background:#fff}
+  }
 
   /* 명함 표준 비율 85.6:54 ≈ 1.586:1 로 고정된 촬영 프레임 */
   .camera-box{
