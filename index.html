@@ -634,27 +634,27 @@
 
   <div class="field">
     <label>이름 <span class="required">필수</span></label>
-    <input type="text" id="name" placeholder="예: 김철수">
+    <input type="text" id="name" name="x-cs-name" placeholder="예: 김철수" autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false">
   </div>
 
   <div class="field">
     <label>회사명</label>
-    <input type="text" id="company" placeholder="예: (주)한빛부동산">
+    <input type="text" id="company" name="x-cs-company" placeholder="예: (주)한빛부동산" autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false">
   </div>
 
   <div class="field">
     <label>직함</label>
-    <input type="text" id="title" placeholder="예: 대표이사">
+    <input type="text" id="title" name="x-cs-title" placeholder="예: 대표이사" autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false">
   </div>
 
   <div class="field">
     <label>상대방 연락처 <span style="color:var(--gray-light);font-weight:600;">(선택, 입력하면 내 명함을 문자로 보낼 수 있어요.)</span></label>
-    <input type="tel" id="phone" placeholder="예: 010-1234-5678">
+    <input type="tel" id="phone" name="x-cs-phone" placeholder="예: 010-1234-5678" autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false">
   </div>
 
   <div class="field">
     <label>이메일 <span style="color:var(--gray-light);font-weight:600;">(선택, 입력하면 목록에서 바로 메일을 보낼 수 있어요.)</span></label>
-    <input type="email" id="email" placeholder="예: name@company.com">
+    <input type="email" id="email" name="x-cs-email" placeholder="예: name@company.com" autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false">
   </div>
 
   <div class="field">
@@ -692,7 +692,7 @@
 
   <div class="field" id="propertyNoField" style="display:block;">
     <label>관련 매물번호 <span style="color:var(--gray-light);font-weight:600;">(선택)</span></label>
-    <input type="text" id="propertyNo" placeholder="예: 3204 (여러 개면 콤마로: 3204, A0002)">
+    <input type="text" id="propertyNo" name="x-cs-propno" placeholder="예: 3204 (여러 개면 콤마로: 3204, A0002)" autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false">
   </div>
 
   <div class="edit-banner" id="editBanner" style="display:none;">명함 수정 중 · 사진을 다시 찍지 않으면 기존 사진이 유지됩니다.</div>
@@ -715,7 +715,7 @@
   <div class="list-filters" id="listFilters">
     <div class="field">
       <label>이름 검색</label>
-      <input type="text" id="searchInput" placeholder="이름으로 검색">
+      <input type="text" id="searchInput" name="x-cs-search" placeholder="이름으로 검색" autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false">
     </div>
     <div class="field filter-row">
       <label>그룹 필터</label>
@@ -776,7 +776,7 @@
     </div>
     <div class="modal-body" id="bulkPropertyStep1">
       <div class="modal-help">한 줄에 하나씩, <b>이름(또는 전화번호), 매물번호</b> 형식으로 붙여넣어주세요. 매물번호가 여러 개면 콤마로 이어 적으면 됩니다.</div>
-      <textarea id="bulkPropertyInput" placeholder="이름 또는 전화번호, 매물번호"></textarea>
+      <textarea id="bulkPropertyInput" name="x-cs-bulk" placeholder="이름 또는 전화번호, 매물번호" autocomplete="off" data-lpignore="true" data-form-type="other" autocorrect="off" spellcheck="false"></textarea>
       <button type="button" class="submit-btn" id="bulkPropertyPreviewBtn" style="margin-top:14px;">매칭 확인</button>
     </div>
     <div class="modal-body" id="bulkPropertyStep2" style="display:none;">
