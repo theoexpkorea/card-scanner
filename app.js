@@ -506,19 +506,7 @@ cameraBox.addEventListener('click', () => {
 captureBtn.addEventListener('click', () => {
   cropToCardAspect(video, video.videoWidth, video.videoHeight);
   showCaptured();
-  showAutoCropDiagnosis();
 });
-
-function showAutoCropDiagnosis() {
-  const map = {
-    'success': '✓ 모서리 자동인식 성공',
-    'no-quad-found': '모서리 인식 실패 · 가이드 프레임 기준으로 저장됨',
-    'cv-not-ready': '자동인식 준비 중(로딩 중) · 가이드 프레임 기준으로 저장됨',
-    'cv-not-loaded': '자동인식 로드 실패 · 가이드 프레임 기준으로 저장됨'
-  };
-  const msg = map[lastAutoCropReason] || ('진단: ' + lastAutoCropReason);
-  showToast(msg, lastAutoCropReason === 'success' ? 'ok' : 'err');
-}
 
 // 초점이 계속 안 맞을 때 폰 기본 카메라 앱으로 전환
 nativeFallbackBtn.addEventListener('click', (e) => {
