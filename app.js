@@ -162,6 +162,7 @@ let stream = null;
 let videoTrack = null;
 
 async function startCamera() {
+  loadOpenCV(); // 명함 모서리 자동 인식용 라이브러리를 미리 백그라운드에서 로드해둠
   try {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
@@ -256,37 +257,175 @@ function stopCamera() {
 
 // 소스 이미지를 명함 비율로 크롭해서 출력 캔버스에 그림
 function cropToCardAspect(sourceImgOrVideo, srcW, srcH) {
-  const aspect = srcW / srcH;
-  let sx, sy, sWidth, sHeight;
-  if (aspect > CARD_ASPECT) {
-    sHeight = srcH;
-    sWidth = srcH * CARD_ASPECT;
-    sx = (srcW - sWidth) / 2;
-    sy = 0;
-  } else {
-    sWidth = srcW;
-    sHeight = srcW / CARD_ASPECT;
-    sx = 0;
-    sy = (srcH - sHeight) / 2;
+  const autoOk = tryAutoCropCard(sourceImgOrVideo, srcW, srcH);
+
+  if (!autoOk) {
+    // 모서리 자동 인식 실패(또는 아직 준비 전) → 기존 가이드 프레임 기준 크롭으로 대체
+    const aspect = srcW / srcH;
+    let sx, sy, sWidth, sHeight;
+    if (aspect > CARD_ASPECT) {
+      sHeight = srcH;
+      sWidth = srcH * CARD_ASPECT;
+      sx = (srcW - sWidth) / 2;
+      sy = 0;
+    } else {
+      sWidth = srcW;
+      sHeight = srcW / CARD_ASPECT;
+      sx = 0;
+      sy = (srcH - sHeight) / 2;
+    }
+
+    const outW = Math.min(OUTPUT_WIDTH, Math.round(sWidth));
+    const outH = Math.round(outW / CARD_ASPECT);
+
+    captureCanvas.width = outW;
+    captureCanvas.height = outH;
+    const ctx = captureCanvas.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    try { ctx.filter = 'contrast(1.06) saturate(1.04)'; } catch (e) {}
+    ctx.drawImage(sourceImgOrVideo, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
   }
 
-  const outW = Math.min(OUTPUT_WIDTH, Math.round(sWidth));
-  const outH = Math.round(outW / CARD_ASPECT);
-
-  captureCanvas.width = outW;
-  captureCanvas.height = outH;
-  const ctx = captureCanvas.getContext('2d');
-  ctx.imageSmoothingQuality = 'high';
-  try { ctx.filter = 'contrast(1.06) saturate(1.04)'; } catch (e) {}
-  ctx.drawImage(sourceImgOrVideo, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
+  // 모서리 인식 성공/실패 상관없이 항상 밝기/대비 자동 보정
+  autoEnhanceCanvas(captureCanvas);
 
   selectedImageMime = 'image/jpeg';
   selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.92);
   updateAiFillVisibility();
 }
 
-let selectedImageBase64 = null;
-let selectedImageMime = 'image/jpeg';
+// ---------- 명함 모서리 자동 인식(OpenCV.js) + 밝기/대비 자동 보정 ----------
+let cvReady = false;
+let cvLoading = false;
+function loadOpenCV() {
+  if (cvReady || cvLoading || window.cv) { if (window.cv && window.cv.Mat) cvReady = true; return; }
+  cvLoading = true;
+  const script = document.createElement('script');
+  script.src = 'https://docs.opencv.org/4.x/opencv.js';
+  script.async = true;
+  script.onload = () => {
+    // opencv.js는 로드 후 내부적으로 WASM을 초기화하고 onRuntimeInitialized를 호출함
+    if (window.cv) {
+      cv['onRuntimeInitialized'] = () => { cvReady = true; cvLoading = false; };
+    }
+  };
+  script.onerror = () => { cvLoading = false; }; // 실패해도 기존 방식(가이드 프레임 크롭)으로 계속 동작
+  document.head.appendChild(script);
+}
+
+function clamp255(v) { return v < 0 ? 0 : v > 255 ? 255 : v; }
+
+// 밝기/대비 자동 보정 (히스토그램 스트레칭) — 외부 라이브러리 없이 항상 동작
+function autoEnhanceCanvas(canvas) {
+  try {
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imgData.data;
+    let min = 255, max = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      const lum = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+      if (lum < min) min = lum;
+      if (lum > max) max = lum;
+    }
+    const range = max - min;
+    if (range < 15 || range > 250) return; // 이미 대비가 충분하거나 계산이 무의미하면 건너뜀
+    const scale = 255 / range;
+    for (let i = 0; i < d.length; i += 4) {
+      d[i] = clamp255((d[i] - min) * scale);
+      d[i + 1] = clamp255((d[i + 1] - min) * scale);
+      d[i + 2] = clamp255((d[i + 2] - min) * scale);
+    }
+    ctx.putImageData(imgData, 0, 0);
+  } catch (e) { /* 실패해도 원본 유지 */ }
+}
+
+function orderQuadPoints(pts) {
+  const sorted = pts.slice().sort((a, b) => a.y - b.y);
+  const top = sorted.slice(0, 2).sort((a, b) => a.x - b.x);
+  const bottom = sorted.slice(2, 4).sort((a, b) => a.x - b.x);
+  return [top[0], top[1], bottom[1], bottom[0]]; // tl, tr, br, bl
+}
+
+// 소스 이미지에서 명함으로 보이는 사각형을 찾아 반듯하게 펴서 captureCanvas에 그림
+// 성공하면 true, 실패(모서리 인식 실패)하면 false를 반환 → 실패 시 호출부에서 기존 방식으로 대체
+function tryAutoCropCard(sourceImgOrVideo, srcW, srcH) {
+  if (!cvReady || !window.cv) return false;
+  let srcMat, gray, blurred, edged, dilated, kernel, contours, hierarchy, best, warped;
+  try {
+    const tmp = document.createElement('canvas');
+    tmp.width = srcW; tmp.height = srcH;
+    tmp.getContext('2d').drawImage(sourceImgOrVideo, 0, 0, srcW, srcH);
+
+    srcMat = cv.imread(tmp);
+    gray = new cv.Mat();
+    cv.cvtColor(srcMat, gray, cv.COLOR_RGBA2GRAY);
+    blurred = new cv.Mat();
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+    edged = new cv.Mat();
+    cv.Canny(blurred, edged, 50, 150);
+    dilated = new cv.Mat();
+    kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+    cv.dilate(edged, dilated, kernel);
+
+    contours = new cv.MatVector();
+    hierarchy = new cv.Mat();
+    cv.findContours(dilated, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+    const imgArea = srcW * srcH;
+    let bestArea = 0;
+    for (let i = 0; i < contours.size(); i++) {
+      const cnt = contours.get(i);
+      const peri = cv.arcLength(cnt, true);
+      const approx = new cv.Mat();
+      cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+      if (approx.rows === 4 && cv.isContourConvex(approx)) {
+        const area = Math.abs(cv.contourArea(approx));
+        // 화면의 20~95% 정도를 차지하는 사각형만 명함 후보로 인정 (너무 작거나 화면 전체인 건 제외)
+        if (area > imgArea * 0.20 && area < imgArea * 0.95 && area > bestArea) {
+          bestArea = area;
+          if (best) best.delete();
+          best = approx.clone();
+        }
+      }
+      approx.delete();
+      cnt.delete();
+    }
+
+    if (!best) return false;
+
+    const pts = [];
+    for (let i = 0; i < 4; i++) pts.push({ x: best.data32S[i * 2], y: best.data32S[i * 2 + 1] });
+    const ordered = orderQuadPoints(pts);
+
+    const widthTop = Math.hypot(ordered[1].x - ordered[0].x, ordered[1].y - ordered[0].y);
+    const widthBottom = Math.hypot(ordered[2].x - ordered[3].x, ordered[2].y - ordered[3].y);
+    const maxWidth = Math.max(widthTop, widthBottom);
+
+    let outW = Math.min(Math.max(maxWidth, 700), OUTPUT_WIDTH);
+    const outH = Math.round(outW / CARD_ASPECT);
+
+    const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+      ordered[0].x, ordered[0].y, ordered[1].x, ordered[1].y,
+      ordered[2].x, ordered[2].y, ordered[3].x, ordered[3].y
+    ]);
+    const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, outW, 0, outW, outH, 0, outH]);
+    const M = cv.getPerspectiveTransform(srcTri, dstTri);
+    warped = new cv.Mat();
+    cv.warpPerspective(srcMat, warped, M, new cv.Size(outW, outH));
+    srcTri.delete(); dstTri.delete(); M.delete();
+
+    captureCanvas.width = outW;
+    captureCanvas.height = outH;
+    cv.imshow(captureCanvas, warped);
+    return true;
+  } catch (e) {
+    return false; // 인식 도중 어떤 이유로든 실패하면 기존 방식으로 대체
+  } finally {
+    [srcMat, gray, blurred, edged, dilated, kernel, contours, hierarchy, best, warped].forEach(m => { try { m && m.delete(); } catch (e) {} });
+  }
+}
+
+
 
 // ---------- 명함 사진 AI 자동 인식(OCR) ----------
 const aiFillBtn = document.getElementById('aiFillBtn');
@@ -403,6 +542,7 @@ const galleryBtn = document.getElementById('galleryBtn');
 
 galleryBtn.addEventListener('click', (e) => {
   e.stopPropagation();
+  loadOpenCV();
   stopCamera();
   video.style.display = 'none';
   guideFrame.style.display = 'none';
