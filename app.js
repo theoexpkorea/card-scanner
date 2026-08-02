@@ -282,10 +282,57 @@ function cropToCardAspect(sourceImgOrVideo, srcW, srcH) {
 
   selectedImageMime = 'image/jpeg';
   selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.92);
+  updateAiFillVisibility();
 }
 
 let selectedImageBase64 = null;
 let selectedImageMime = 'image/jpeg';
+
+// ---------- 명함 사진 AI 자동 인식(OCR) ----------
+const aiFillBtn = document.getElementById('aiFillBtn');
+const aiFillBtnLabel = document.getElementById('aiFillBtnLabel');
+
+function updateAiFillVisibility() {
+  aiFillBtn.style.display = selectedImageBase64 ? 'flex' : 'none';
+}
+
+aiFillBtn.addEventListener('click', async () => {
+  if (!selectedImageBase64) return;
+
+  aiFillBtn.disabled = true;
+  aiFillBtn.classList.add('loading');
+  aiFillBtnLabel.textContent = '인식 중...';
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'scanCard',
+        imageBase64: selectedImageBase64,
+        mimeType: selectedImageMime
+      })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      if (data.name) document.getElementById('name').value = data.name;
+      if (data.company) document.getElementById('company').value = data.company;
+      if (data.title) document.getElementById('title').value = data.title;
+      if (data.phone) document.getElementById('phone').value = data.phone;
+      if (data.email) document.getElementById('email').value = data.email;
+      showToast('자동 채우기 완료 · 확인 후 저장해주세요', 'ok');
+    } else {
+      showToast('인식 실패: ' + (data.error || '알 수 없는 오류'), 'err');
+    }
+  } catch (err) {
+    showToast('네트워크 오류: ' + err.message, 'err');
+  } finally {
+    aiFillBtn.disabled = false;
+    aiFillBtn.classList.remove('loading');
+    aiFillBtnLabel.textContent = 'AI로 자동 채우기';
+  }
+});
 
 function showCaptured() {
   resultImg.src = selectedImageBase64;
@@ -325,6 +372,7 @@ retakeBtn.addEventListener('click', (e) => {
   resultImg.style.display = 'none';
   retakeBtn.style.display = 'none';
   selectedImageBase64 = null;
+  updateAiFillVisibility();
   startCamera();
 });
 
@@ -542,6 +590,7 @@ function resetForm() {
   subgroupField.style.display = 'none';
   subsubgroupField.style.display = 'none';
   selectedImageBase64 = null;
+  updateAiFillVisibility();
 
   stopCamera();
   resultImg.style.display = 'none';
@@ -988,6 +1037,7 @@ function enterEditMode(card) {
   populateGroupChain(card.group, card.subgroup, card.subsubgroup);
 
   selectedImageBase64 = null;
+  updateAiFillVisibility();
   stopCamera();
   cameraBox.classList.remove('idle');
   placeholder.style.display = 'none';
