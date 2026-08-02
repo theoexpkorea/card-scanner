@@ -348,8 +348,11 @@ function orderQuadPoints(pts) {
 
 // 소스 이미지에서 명함으로 보이는 사각형을 찾아 반듯하게 펴서 captureCanvas에 그림
 // 성공하면 true, 실패(모서리 인식 실패)하면 false를 반환 → 실패 시 호출부에서 기존 방식으로 대체
+let lastAutoCropReason = 'init'; // 진단용: 마지막 자동인식 시도의 결과 사유
+
 function tryAutoCropCard(sourceImgOrVideo, srcW, srcH) {
-  if (!cvReady || !window.cv) return false;
+  if (!window.cv || !cv.Mat) { lastAutoCropReason = 'cv-not-loaded'; return false; }
+  if (!cvReady) { lastAutoCropReason = 'cv-not-ready'; return false; }
   let srcMat, gray, blurred, edged, dilated, kernel, contours, hierarchy, best, warped;
   try {
     const tmp = document.createElement('canvas');
@@ -361,37 +364,46 @@ function tryAutoCropCard(sourceImgOrVideo, srcW, srcH) {
     cv.cvtColor(srcMat, gray, cv.COLOR_RGBA2GRAY);
     blurred = new cv.Mat();
     cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
-    edged = new cv.Mat();
-    cv.Canny(blurred, edged, 50, 150);
-    dilated = new cv.Mat();
-    kernel = cv.Mat.ones(3, 3, cv.CV_8U);
-    cv.dilate(edged, dilated, kernel);
-
-    contours = new cv.MatVector();
-    hierarchy = new cv.Mat();
-    cv.findContours(dilated, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
 
     const imgArea = srcW * srcH;
     let bestArea = 0;
-    for (let i = 0; i < contours.size(); i++) {
-      const cnt = contours.get(i);
-      const peri = cv.arcLength(cnt, true);
-      const approx = new cv.Mat();
-      cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
-      if (approx.rows === 4 && cv.isContourConvex(approx)) {
-        const area = Math.abs(cv.contourArea(approx));
-        // 화면의 20~95% 정도를 차지하는 사각형만 명함 후보로 인정 (너무 작거나 화면 전체인 건 제외)
-        if (area > imgArea * 0.20 && area < imgArea * 0.95 && area > bestArea) {
-          bestArea = area;
-          if (best) best.delete();
-          best = approx.clone();
+
+    // 조명/배경에 따라 엣지가 잘 안 잡힐 수 있어서, Canny 임계값을 여러 개 시도
+    const cannyPairs = [[50, 150], [30, 90], [75, 200]];
+    for (const [t1, t2] of cannyPairs) {
+      if (best) break;
+      edged = new cv.Mat();
+      cv.Canny(blurred, edged, t1, t2);
+      dilated = new cv.Mat();
+      kernel = cv.Mat.ones(3, 3, cv.CV_8U);
+      cv.dilate(edged, dilated, kernel);
+
+      contours = new cv.MatVector();
+      hierarchy = new cv.Mat();
+      cv.findContours(dilated, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+      for (let i = 0; i < contours.size(); i++) {
+        const cnt = contours.get(i);
+        const peri = cv.arcLength(cnt, true);
+        const approx = new cv.Mat();
+        cv.approxPolyDP(cnt, approx, 0.02 * peri, true);
+        if (approx.rows === 4 && cv.isContourConvex(approx)) {
+          const area = Math.abs(cv.contourArea(approx));
+          // 화면의 8~95% 정도를 차지하는 사각형까지 명함 후보로 인정 (기존 20%는 너무 엄격했음)
+          if (area > imgArea * 0.08 && area < imgArea * 0.95 && area > bestArea) {
+            bestArea = area;
+            if (best) best.delete();
+            best = approx.clone();
+          }
         }
+        approx.delete();
+        cnt.delete();
       }
-      approx.delete();
-      cnt.delete();
+      edged.delete(); dilated.delete(); kernel.delete(); contours.delete(); hierarchy.delete();
+      edged = dilated = kernel = contours = hierarchy = null;
     }
 
-    if (!best) return false;
+    if (!best) { lastAutoCropReason = 'no-quad-found'; return false; }
 
     const pts = [];
     for (let i = 0; i < 4; i++) pts.push({ x: best.data32S[i * 2], y: best.data32S[i * 2 + 1] });
@@ -417,8 +429,10 @@ function tryAutoCropCard(sourceImgOrVideo, srcW, srcH) {
     captureCanvas.width = outW;
     captureCanvas.height = outH;
     cv.imshow(captureCanvas, warped);
+    lastAutoCropReason = 'success';
     return true;
   } catch (e) {
+    lastAutoCropReason = 'error:' + (e && e.message ? e.message : String(e));
     return false; // 인식 도중 어떤 이유로든 실패하면 기존 방식으로 대체
   } finally {
     [srcMat, gray, blurred, edged, dilated, kernel, contours, hierarchy, best, warped].forEach(m => { try { m && m.delete(); } catch (e) {} });
@@ -492,7 +506,19 @@ cameraBox.addEventListener('click', () => {
 captureBtn.addEventListener('click', () => {
   cropToCardAspect(video, video.videoWidth, video.videoHeight);
   showCaptured();
+  showAutoCropDiagnosis();
 });
+
+function showAutoCropDiagnosis() {
+  const map = {
+    'success': '✓ 모서리 자동인식 성공',
+    'no-quad-found': '모서리 인식 실패 · 가이드 프레임 기준으로 저장됨',
+    'cv-not-ready': '자동인식 준비 중(로딩 중) · 가이드 프레임 기준으로 저장됨',
+    'cv-not-loaded': '자동인식 로드 실패 · 가이드 프레임 기준으로 저장됨'
+  };
+  const msg = map[lastAutoCropReason] || ('진단: ' + lastAutoCropReason);
+  showToast(msg, lastAutoCropReason === 'success' ? 'ok' : 'err');
+}
 
 // 초점이 계속 안 맞을 때 폰 기본 카메라 앱으로 전환
 nativeFallbackBtn.addEventListener('click', (e) => {
