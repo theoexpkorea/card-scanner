@@ -588,9 +588,23 @@ retakeBtn.addEventListener('click', (e) => {
 function handlePickedFile(file) {
   if (!file) return;
   const reader = new FileReader();
+  reader.onerror = () => {
+    showToast('파일을 읽을 수 없어요. 다른 사진으로 시도해주세요', 'err');
+  };
   reader.onload = (evt) => {
     const img = new Image();
+    img.onerror = () => {
+      // 2026-08-04 추가: HEIC 등 브라우저가 디코딩 못 하는 포맷은 여기서 에러로 걸림
+      console.error('[handlePickedFile] 이미지 디코딩 실패 — 지원하지 않는 파일 형식일 수 있음:', file.type, file.name);
+      showToast('이 사진 형식을 읽을 수 없어요(아이폰 HEIC 사진이면 "가장 호환성 높음" 설정으로 다시 찍거나, 사진 앱에서 JPG로 내보낸 후 선택해주세요)', 'err');
+    };
     img.onload = () => {
+      // 2026-08-04 추가: onload는 됐는데 크기가 0인 경우(일부 브라우저가 HEIC 등을 "성공"으로 잘못 보고하는 경우) 방어
+      if (!img.width || !img.height) {
+        console.error('[handlePickedFile] 이미지 크기 0으로 읽힘 — 지원하지 않는 파일 형식일 가능성:', file.type, file.name);
+        showToast('이 사진을 읽지 못했어요(아이폰 HEIC 사진이면 JPG로 변환 후 선택해주세요)', 'err');
+        return;
+      }
       cropToCardAspect(img, img.width, img.height);
       cameraBox.classList.remove('idle');
       placeholder.style.display = 'none';
