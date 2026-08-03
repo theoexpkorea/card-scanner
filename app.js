@@ -166,6 +166,20 @@ const cameraBox = document.getElementById('cameraBox');
 const placeholder = document.getElementById('placeholder');
 const video = document.getElementById('video');
 const resultImg = document.getElementById('resultImg');
+
+// 2026-08-04 추가: 위의 여러 안전장치를 다 뚫고도 혹시 이미지 렌더링 자체가 실패하면(브라우저 기본
+// "이미지 깨짐" 아이콘이 뜨는 상황), 그 상태로 방치하지 않고 사용자에게 안내 후 다시 찍을 수 있게 되돌림
+resultImg.addEventListener('error', () => {
+  if (!resultImg.src || resultImg.style.display === 'none') return; // 초기 로드 등 정상적인 빈 상태는 무시
+  console.error('[resultImg] 이미지 렌더링 실패 — 다시 촬영이 필요합니다.');
+  showToast('사진 처리 중 오류가 발생했어요. 다시 찍어주세요', 'err');
+  resultImg.style.display = 'none';
+  retakeBtn.style.display = 'none';
+  selectedImageBase64 = null;
+  updateAiFillVisibility();
+  cameraBox.classList.add('idle');
+  placeholder.style.display = 'flex';
+});
 const guideFrame = document.getElementById('guideFrame');
 const guideLabel = document.getElementById('guideLabel');
 const captureBtn = document.getElementById('captureBtn');
@@ -272,41 +286,59 @@ function stopCamera() {
 }
 
 // 소스 이미지를 명함 비율로 크롭해서 출력 캔버스에 그림
+// 가이드 프레임 기준 기본 크롭 (모서리 자동인식 실패/이상 시 항상 이걸로 안전하게 대체됨)
+function simpleGuideFrameCrop(sourceImgOrVideo, srcW, srcH) {
+  const aspect = srcW / srcH;
+  let sx, sy, sWidth, sHeight;
+  if (aspect > CARD_ASPECT) {
+    sHeight = srcH;
+    sWidth = srcH * CARD_ASPECT;
+    sx = (srcW - sWidth) / 2;
+    sy = 0;
+  } else {
+    sWidth = srcW;
+    sHeight = srcW / CARD_ASPECT;
+    sx = 0;
+    sy = (srcH - sHeight) / 2;
+  }
+
+  const outW = Math.min(OUTPUT_WIDTH, Math.round(sWidth));
+  const outH = Math.round(outW / CARD_ASPECT);
+
+  captureCanvas.width = outW;
+  captureCanvas.height = outH;
+  const ctx = captureCanvas.getContext('2d');
+  ctx.imageSmoothingQuality = 'high';
+  try { ctx.filter = 'contrast(1.06) saturate(1.04)'; } catch (e) {}
+  ctx.drawImage(sourceImgOrVideo, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
+}
+
 function cropToCardAspect(sourceImgOrVideo, srcW, srcH) {
   const autoOk = tryAutoCropCard(sourceImgOrVideo, srcW, srcH);
 
-  if (!autoOk) {
-    // 모서리 자동 인식 실패(또는 아직 준비 전) → 기존 가이드 프레임 기준 크롭으로 대체
-    const aspect = srcW / srcH;
-    let sx, sy, sWidth, sHeight;
-    if (aspect > CARD_ASPECT) {
-      sHeight = srcH;
-      sWidth = srcH * CARD_ASPECT;
-      sx = (srcW - sWidth) / 2;
-      sy = 0;
-    } else {
-      sWidth = srcW;
-      sHeight = srcW / CARD_ASPECT;
-      sx = 0;
-      sy = (srcH - sHeight) / 2;
-    }
-
-    const outW = Math.min(OUTPUT_WIDTH, Math.round(sWidth));
-    const outH = Math.round(outW / CARD_ASPECT);
-
-    captureCanvas.width = outW;
-    captureCanvas.height = outH;
-    const ctx = captureCanvas.getContext('2d');
-    ctx.imageSmoothingQuality = 'high';
-    try { ctx.filter = 'contrast(1.06) saturate(1.04)'; } catch (e) {}
-    ctx.drawImage(sourceImgOrVideo, sx, sy, sWidth, sHeight, 0, 0, outW, outH);
+  // 2026-08-04 추가: 자동인식이 "성공"으로 보고됐어도 캔버스 크기가 비정상(0 등)이면
+  // 안전하게 기본 크롭으로 재시도 (검은 이미지깨짐 아이콘의 근본 원인이었던 케이스 방어)
+  if (!autoOk || !captureCanvas.width || !captureCanvas.height) {
+    simpleGuideFrameCrop(sourceImgOrVideo, srcW, srcH);
   }
 
-  // 모서리 인식 성공/실패 상관없이 항상 밝기/대비 자동 보정
-  autoEnhanceCanvas(captureCanvas);
+  // 모서리 인식 성공/실패 상관없이 항상 밝기/대비 자동 보정 (실패해도 원본 크롭 이미지는 유지)
+  try {
+    autoEnhanceCanvas(captureCanvas);
+  } catch (e) {
+    console.error('[autoEnhanceCanvas] 보정 실패, 보정 없이 진행:', e);
+  }
 
   selectedImageMime = 'image/jpeg';
-  selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.85);
+  try {
+    selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.85);
+    if (!selectedImageBase64 || selectedImageBase64 === 'data:,') throw new Error('빈 이미지 데이터');
+  } catch (e) {
+    // 최후의 안전장치: 그래도 실패하면 기본 크롭으로 한 번 더 재시도
+    console.error('[cropToCardAspect] 이미지 인코딩 실패, 기본 크롭으로 재시도:', e);
+    simpleGuideFrameCrop(sourceImgOrVideo, srcW, srcH);
+    selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.85);
+  }
   updateAiFillVisibility();
 }
 
@@ -431,6 +463,15 @@ function tryAutoCropCard(sourceImgOrVideo, srcW, srcH) {
 
     let outW = Math.min(Math.max(maxWidth, 700), OUTPUT_WIDTH);
     const outH = Math.round(outW / CARD_ASPECT);
+
+    // 2026-08-04 추가: 모서리 좌표가 애매하게 잡혀 폭/높이 계산이 비정상(NaN, 0 이하 등)이 되는 극단적 케이스가
+    // 있었음(캔버스 크기가 0이 되면서 최종 이미지가 깨져서 "이미지 깨짐" 아이콘이 뜨던 원인). 이 경우 자동인식을
+    // 실패로 처리해서 기존 가이드프레임 크롭 방식으로 안전하게 넘어가도록 함.
+    if (!Number.isFinite(outW) || !Number.isFinite(outH) || outW <= 0 || outH <= 0) {
+      lastAutoCropReason = 'invalid-dimensions';
+      if (best) best.delete();
+      return false;
+    }
 
     const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
       ordered[0].x, ordered[0].y, ordered[1].x, ordered[1].y,
