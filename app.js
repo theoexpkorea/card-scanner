@@ -1,5 +1,21 @@
 // ⚠️ Apps Script 배포 후 웹앱 URL을 여기에 붙여넣으세요
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyFPY9gJxEJm_Ny-qqEViYWJ6l1cGptVLto7BR_jyLWk3A2KoV-shtR6ldKod1SdllB/exec';
+
+// 2026-08-04 추가: fetch 후 바로 res.json()을 호출하면 서버가 정상 JSON이 아닌 응답(타임아웃/네트워크 불안정으로
+// 잘린 응답, Apps Script 오류 HTML 등)을 돌려줄 때 "Unexpected token ..." 같은 의미 불명확한 에러만 뜨고 원인을
+// 알 수 없었음. 원본 텍스트를 먼저 읽고 파싱해서, 실패 시 서버가 실제로 뭘 돌려줬는지 콘솔에 남기고
+// 사용자에게도 좀 더 알아볼 수 있는 에러 메시지를 보여주도록 함.
+async function fetchJsonSafe(url, options) {
+  const res = await fetch(url, options);
+  const raw = await res.text();
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('[fetchJsonSafe] JSON 파싱 실패 — 서버 원본 응답:', raw);
+    const preview = raw ? raw.slice(0, 150).replace(/\s+/g, ' ').trim() : '';
+    throw new Error('서버 응답 오류(HTTP ' + res.status + ')' + (preview ? ': ' + preview : ' — 빈 응답'));
+  }
+}
 // 매물필터뷰의 실시간 매물 데이터 (거래완료 등으로 빠진 매물번호는 링크를 숨기기 위해 대조용으로 사용)
 const MAEMUL_DATA_URL = 'https://script.google.com/macros/s/AKfycbzDk9DYfD7okIfp4_MH5asXVxgroC9qlYGL08yHL_0dXPDfWElTdKglhQ-BQxWVoiil/exec';
 
@@ -144,7 +160,7 @@ ddSubgroup.onChange((subgroup) => {
 
 // ---------- 카메라 촬영 (라이브 프리뷰 + 명함 비율 가이드) ----------
 const CARD_ASPECT = 85.6 / 54; // 명함 표준 비율 (가로:세로)
-const OUTPUT_WIDTH = 2000; // 저장 이미지 고정 가로 크기 (고화질 유지)
+const OUTPUT_WIDTH = 1400; // 저장 이미지 고정 가로 크기 (2026-08-04: 업로드 속도/안정성 개선을 위해 2000→1400으로 축소, 텍스트 판독에는 충분한 해상도)
 
 const cameraBox = document.getElementById('cameraBox');
 const placeholder = document.getElementById('placeholder');
@@ -290,7 +306,7 @@ function cropToCardAspect(sourceImgOrVideo, srcW, srcH) {
   autoEnhanceCanvas(captureCanvas);
 
   selectedImageMime = 'image/jpeg';
-  selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.92);
+  selectedImageBase64 = captureCanvas.toDataURL('image/jpeg', 0.85);
   updateAiFillVisibility();
 }
 
@@ -457,7 +473,7 @@ aiFillBtn.addEventListener('click', async () => {
   aiFillBtnLabel.textContent = '인식 중...';
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const data = await fetchJsonSafe(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({
@@ -466,7 +482,6 @@ aiFillBtn.addEventListener('click', async () => {
         mimeType: selectedImageMime
       })
     });
-    const data = await res.json();
 
     if (data.success) {
       if (data.name) document.getElementById('name').value = data.name;
@@ -681,12 +696,11 @@ submitBtn.addEventListener('click', async () => {
       payload.id = editingCardId;
     }
 
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const data = await fetchJsonSafe(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify(payload)
     });
-    const data = await res.json();
 
     if (data.success) {
       if (editingCardId) {
@@ -1235,12 +1249,11 @@ async function deleteCardFlow(card) {
   if (!ok) return;
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const data = await fetchJsonSafe(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'delete', id: card.id, trashPhoto: true })
     });
-    const data = await res.json();
     if (data.success) {
       if (data.photoWarning) {
         showToast('시트에서 삭제됨 · ' + data.photoWarning, 'err');
@@ -1349,12 +1362,11 @@ bulkPropertyApplyBtn.addEventListener('click', async () => {
   bulkPropertyApplyBtn.textContent = '적용 중...';
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const data = await fetchJsonSafe(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'bulkProperty', mappings: mappings })
     });
-    const data = await res.json();
     if (data.success) {
       showToast('일괄 반영 완료 (' + mappings.length + '건)', 'ok');
       closeBulkPropertyModal();
